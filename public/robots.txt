@@ -1,0 +1,17 @@
+User-agent: *
+Disallow: /auth
+Disallow: /admin
+Disallow: /admins
+Disallow: /logs
+Disallow: /profile
+Disallow: /user
+Disallow: /users
+Disallow: /instagram
+Disallow: /film/create
+Disallow: /film/edit
+Disallow: /channel
+Disallow: /
+Disallow: /films
+Disallow: /channels
+
+Sitemap: https://dodakino.orbitx.uz/sitemap.xml

@@ -1,0 +1,98 @@
+:root {
+  /* ── Background ───────────────────────────── */
+  --color-bg-primary: #f4f5f7;       /* Sahifaning eng tashqi foni. <body>, umumiy page-wrapper shu rangda bo'ladi. Boshqa barcha fonlar shu ustiga qo'yiladi */
+  --color-bg-secondary: #eceef1;     /* Ichki bo'limlar foni — sidebar, section, tab-panel, kod bloklari. Primary'dan sal to'qroq, "botiq" hudud hissini beradi */
+  --color-bg-surface: #ffffff;       /* Ko'tarilgan elementlar foni — Card, Modal, Dropdown, Navbar, Tooltip. Sof oq, eng yorug' qatlam, e'tiborni tortadi */
+
+  /* ── Text ─────────────────────────────────── */
+  --color-text-primary: #111827;     /* Asosiy matn — sarlavha (h1-h3), body matn, muhim label'lar. Eng yuqori kontrast */
+  --color-text-secondary: #6b7280;   /* Ikkinchi darajali matn — tavsif, subtitle, kartochka ostidagi izoh, meta ma'lumot (sana, muallif) */
+  --color-text-muted: #9ca3af;       /* Eng past ustuvorlikdagi matn — input placeholder, disabled tugma matni, bo'sh state izohi */
+  --color-text-on-accent: #14150a;   /* Faqat accent/brand fon ustiga qo'yilgan matn/ikonka uchun (masalan accent tugma ichidagi yozuv) */
+
+  /* ── Border ───────────────────────────────── */
+  --color-border-primary: #d1d5db;   /* Interaktiv elementlar chegarasi — input, select, textarea, checkbox border */
+  --color-border-secondary: #e5e7eb; /* Ajratuvchi chiziqlar — divider, jadval qatorlari orasidagi chegara, card ichidagi bo'linish */
+
+  /* ── Accent ───────────────────────────────── */
+  --color-accent: #d7ff22;           /* Asosiy CTA rang — primary tugma foni, aktiv tab, checked checkbox/radio, fokus urg'usi */
+  --color-brand: #d0ff00;            /* Brend identifikatori — logo, launch screen, marketing bannerlar (accent'dan farqli maxsus o'rinlarda) */
+  --color-accent-text: #4d5c00;      /* Yorug' rejimda o'qilishini ta'minlash uchun qoramtir sariq-yashil yozuv rangi */
+  --color-accent-hover: #c1e61a;     /* Accent elementlar ustiga sichqoncha kelganda (hover) ko'rsatiladigan rang */
+  --color-accent-soft: #d7ff221a;    /* Accentning 10% shaffofligi — tanlangan qator foni, badge/chip fon, subtle highlight */
+
+  /* ── Danger ───────────────────────────────── */
+  --color-danger: #ef4444;           /* Xavfli/qaytarib bo'lmas amallar — delete tugma, validatsiya xatolik matni, error icon */
+  --color-danger-hover: #dc2626;     /* Danger elementlar hover holati */
+  --color-danger-soft: #ef44441a;    /* Danger 10% shaffoflik — error banner/alert foni, input xato holati foni */
+
+  /* ── Overlay & Effects ────────────────────── */
+  --color-overlay: #0000004d;        /* Modal, drawer yoki dropdown ochilganda orqa fonni qorong'ulashtiruvchi qatlam */
+  --color-shadow-soft: #0000000d;    /* Card, dropdown, popover atrofidagi yengil ko'tarilish soyasi (box-shadow) */
+}
+
+:root.light {
+  /* ── Background ───────────────────────────── */
+  --color-bg-primary: #f4f5f7;       /* Sahifaning eng tashqi foni. <body>, umumiy page-wrapper shu rangda bo'ladi. Boshqa barcha fonlar shu ustiga qo'yiladi */
+  --color-bg-secondary: #eceef1;     /* Ichki bo'limlar foni — sidebar, section, tab-panel, kod bloklari. Primary'dan sal to'qroq, "botiq" hudud hissini beradi */
+  --color-bg-surface: #ffffff;       /* Ko'tarilgan elementlar foni — Card, Modal, Dropdown, Navbar, Tooltip. Sof oq, eng yorug' qatlam, e'tiborni tortadi */
+
+  /* ── Text ─────────────────────────────────── */
+  --color-text-primary: #111827;     /* Asosiy matn — sarlavha (h1-h3), body matn, muhim label'lar. Eng yuqori kontrast */
+  --color-text-secondary: #6b7280;   /* Ikkinchi darajali matn — tavsif, subtitle, kartochka ostidagi izoh, meta ma'lumot (sana, muallif) */
+  --color-text-muted: #9ca3af;       /* Eng past ustuvorlikdagi matn — input placeholder, disabled tugma matni, bo'sh state izohi */
+  --color-text-on-accent: #14150a;   /* Faqat accent/brand fon ustiga qo'yilgan matn/ikonka uchun (masalan accent tugma ichidagi yozuv) */
+
+  /* ── Border ───────────────────────────────── */
+  --color-border-primary: #d1d5db;   /* Interaktiv elementlar chegarasi — input, select, textarea, checkbox border */
+  --color-border-secondary: #e5e7eb; /* Ajratuvchi chiziqlar — divider, jadval qatorlari orasidagi chegara, card ichidagi bo'linish */
+
+  /* ── Accent ───────────────────────────────── */
+  --color-accent: #d7ff22;           /* Asosiy CTA rang — primary tugma foni, aktiv tab, checked checkbox/radio, fokus urg'usi */
+  --color-brand: #d0ff00;            /* Brend identifikatori — logo, launch screen, marketing bannerlar (accent'dan farqli maxsus o'rinlarda) */
+  --color-accent-text: #4d5c00;      /* Yorug' rejimda o'qilishini ta'minlash uchun qoramtir sariq-yashil yozuv rangi */
+  --color-accent-hover: #c1e61a;     /* Accent elementlar ustiga sichqoncha kelganda (hover) ko'rsatiladigan rang */
+  --color-accent-soft: #d7ff221a;    /* Accentning 10% shaffofligi — tanlangan qator foni, badge/chip fon, subtle highlight */
+
+  /* ── Danger ───────────────────────────────── */
+  --color-danger: #ef4444;           /* Xavfli/qaytarib bo'lmas amallar — delete tugma, validatsiya xatolik matni, error icon */
+  --color-danger-hover: #dc2626;     /* Danger elementlar hover holati */
+  --color-danger-soft: #ef44441a;    /* Danger 10% shaffoflik — error banner/alert foni, input xato holati foni */
+
+  /* ── Overlay & Effects ────────────────────── */
+  --color-overlay: #0000004d;        /* Modal, drawer yoki dropdown ochilganda orqa fonni qorong'ulashtiruvchi qatlam */
+  --color-shadow-soft: #0000000d;    /* Card, dropdown, popover atrofidagi yengil ko'tarilish soyasi (box-shadow) */
+}
+
+:root.dark {
+  /* ── Background ───────────────────────────── */
+  --color-bg-primary: #0d0f12;       /* Sahifaning eng tashqi foni — <body>. Eng to'q qatlam, boshqa hammasi shundan "ko'tariladi" */
+  --color-bg-secondary: #16181d;     /* Ichki bo'limlar foni — sidebar, section, tab-panel. Primary'dan biroz ochroq */
+  --color-bg-surface: #1f232b;       /* Card, Modal, Navbar, Dropdown foni — eng ochroq qatlam, ko'tarilgan/elevated hissini beradi */
+
+  /* ── Text ─────────────────────────────────── */
+  --color-text-primary: #f3f4f6;     /* Asosiy matn — sarlavha va muhim body matn, eng yuqori o'qilish darajasi */
+  --color-text-secondary: #9ca3af;   /* Ikkinchi darajali matn — tavsif, subtitle, meta ma'lumot */
+  --color-text-muted: #6b7280;       /* Placeholder, disabled matn, eng kam e'tibor talab qiladigan yozuvlar */
+  --color-text-on-accent: #14150a;   /* Accent fon ustidagi matn — qorong'i rejimda ham qora saqlanadi, chunki accent o'zi yorqin */
+
+  /* ── Border ───────────────────────────────── */
+  --color-border-primary: #2e323b;   /* Input, select, checkbox chegarasi — qorong'i fonda yumshoq ko'rinadigan kontrast */
+  --color-border-secondary: #23262d; /* Divider, jadval qatorlari orasidagi ajratuvchi — deyarli sezilmaydigan, fon bilan yaqin */
+
+  /* ── Accent ───────────────────────────────── */
+  --color-accent: #d7ff22;           /* Asosiy CTA rang — qorong'i fonda yanada porlab, diqqatni yaxshi tortadi */
+  --color-brand: #d0ff00;            /* Brend rangi — logo va maxsus marketing elementlari */
+  --color-accent-text: #d7ff22;      /* Qorong'i rejimda o'qilish yaxshi bo'lganligi uchun asosiy accent ishlatiladi */
+  --color-accent-hover: #e6ff5c;     /* Hover holati — qorong'i rejimda pasaytirish o'rniga ochroq qilib kuchaytiriladi */
+  --color-accent-soft: #d7ff2226;    /* Accentning ~15% shaffofligi — qorong'i fonda sezilishi uchun light rejimdan biroz kuchliroq */
+
+  /* ── Danger ───────────────────────────────── */
+  --color-danger: #f87171;           /* Delete tugma, xatolik matni — qorong'i fonda ko'zni charchatmaydigan yumshoqroq qizil */
+  --color-danger-hover: #ef4444;     /* Danger elementlar hover holati */
+  --color-danger-soft: #f871711a;    /* Error banner/alert foni, xato holatidagi input foni */
+
+  /* ── Overlay & Effects ────────────────────── */
+  --color-overlay: #000000b3;        /* Modal/drawer ochilganda orqa fon — dark rejimda kuchliroq, fokusni yaxshi ajratadi */
+  --color-shadow-soft: #00000040;    /* Card/popover soyasi — qorong'i fonda ko'rinishi uchun kuchaytirilgan opacity */
+}

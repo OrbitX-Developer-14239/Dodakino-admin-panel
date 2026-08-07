@@ -1,0 +1,82 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.stats_grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.stat_card {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 20px;
+}
+
+.stat_icon_wrapper {
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  .icon_placeholder {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--color-text-primary);
+  }
+}
+
+.stat_info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  .stat_label {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+  }
+
+  .stat_value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    line-height: 1.2;
+  }
+
+  .stat_value_text {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+  }
+
+  .stat_subvalue {
+    font-size: 13px;
+    color: var(--color-text-muted);
+  }
+}
+
+.content_grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+
+  .welcome_card {
+    .welcome_text {
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--color-text-secondary);
+      max-width: 600px;
+    }
+  }
+}
