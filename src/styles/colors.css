@@ -31,6 +31,7 @@
   --color-shadow-soft: #0000000d;    /* Card, dropdown, popover atrofidagi yengil ko'tarilish soyasi (box-shadow) */
 }
 
+
 :root.light {
   /* ── Background ───────────────────────────── */
   --color-bg-primary: #f4f5f7;       /* Sahifaning eng tashqi foni. <body>, umumiy page-wrapper shu rangda bo'ladi. Boshqa barcha fonlar shu ustiga qo'yiladi */
