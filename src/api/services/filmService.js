@@ -59,6 +59,23 @@ const FilmService = {
   },
 
   /**
+   * AI orqali kino ma'lumotlarini tayyorlash (bazaga yozmaydi).
+   * Faqat `name` majburiy; `year`/`country` bir xil nomli kinolarni ajratadi.
+   * Javobda bo'sh film kodi va epizod kodlari ham keladi.
+   * @param {{name: string, year?: number|string, country?: string, episodeCount?: number}} params
+   * @returns {Promise<any>} { data: { film: {...code}, episodeCodes: [] } }
+   * @swagger POST /api/film/ai-suggest
+   */
+  async aiSuggest({ name, year, country, episodeCount = 1 }) {
+    return client.post(ENDPOINTS.FILMS.AI_SUGGEST, {
+      name,
+      ...(year ? { year: Number(year) } : {}),
+      ...(country ? { country } : {}),
+      episodeCount,
+    });
+  },
+
+  /**
    * Kinoni tahrirlash (faqat text ma'lumotlari)
    * @param {string} id 
    * @param {Object} data 

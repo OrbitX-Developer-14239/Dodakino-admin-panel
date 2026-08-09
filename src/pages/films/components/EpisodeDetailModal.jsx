@@ -118,7 +118,7 @@ function EpisodeDetailModal({ episode, onClose, onUpdate }) {
 
             <div className={styles.modal_actions}>
               <Button variant="ghost" onClick={onClose}>Yopish</Button>
-              <Button variant="danger" onClick={handleDelete} disabled={isDeleting}>
+              <Button variant="danger" onClick={handleDelete} loading={isDeleting}>
                 {isDeleting ? "O'chirilmoqda..." : "🗑 O'chirish"}
               </Button>
               <Button variant="primary" onClick={() => setIsEditing(true)}>✏️ Tahrirlash</Button>
@@ -173,7 +173,7 @@ function EpisodeDetailModal({ episode, onClose, onUpdate }) {
             </div>
             <div className={styles.modal_actions}>
               <Button variant="ghost" onClick={() => setIsEditing(false)}>Bekor</Button>
-              <Button variant="primary" onClick={handleSave} disabled={isSaving}>
+              <Button variant="primary" onClick={handleSave} loading={isSaving}>
                 {isSaving ? "Saqlanmoqda..." : "Saqlash"}
               </Button>
             </div>

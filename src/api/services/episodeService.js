@@ -29,6 +29,23 @@ const EpisodeService = {
   },
 
   /**
+   * AI orqali qism ma'lumotlarini tayyorlash (bazaga yozmaydi).
+   * `filmId` berilsa serial nomi/yili/davlati bazadan olinadi.
+   * Javobda bo'sh qism kodi ham keladi.
+   * @param {{filmId?: string, filmName?: string, episodeNumber?: number, count?: number}} params
+   * @returns {Promise<any>} { data: { episode: {...code}, codes: [] } }
+   * @swagger POST /api/episode/ai-suggest
+   */
+  async aiSuggest({ filmId, filmName, episodeNumber = 1, count = 1 }) {
+    return client.post(ENDPOINTS.EPISODES.AI_SUGGEST, {
+      ...(filmId ? { filmId } : {}),
+      ...(filmName ? { filmName } : {}),
+      episodeNumber,
+      count,
+    });
+  },
+
+  /**
    * Epizodni tahrirlash (faqat text ma'lumotlari)
    * @param {string} id 
    * @param {Object} data 

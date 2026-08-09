@@ -39,6 +39,7 @@ export const ENDPOINTS = {
     BY_CODE: (code) => `/film/code/${code}`,
     BY_ID: (id) => `/film/id/${id}`,
     SEARCH: "/film/search",
+    AI_SUGGEST: "/film/ai-suggest",
     UPDATE: (id) => `/film/${id}`,
     DELETE: (id) => `/film/${id}`,
   },
@@ -46,6 +47,7 @@ export const ENDPOINTS = {
   // ─── EPISODES ────────────────────────────────────────────────────
   EPISODES: {
     CREATE: "/episode",
+    AI_SUGGEST: "/episode/ai-suggest",
     BY_CODE: (code) => `/episode/code/${code}`,
     UPDATE: (id) => `/episode/${id}`,
     // `id` o'rniga epizod `code` ini ham qabul qiladi

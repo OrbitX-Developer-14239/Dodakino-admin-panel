@@ -17,6 +17,27 @@
   }
 }
 
+/* Yuklanish indikatori — tugma rangidan meros oladi, shuning uchun
+   barcha variantlarda (primary, danger, ghost...) to'g'ri ko'rinadi. */
+.spinner {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: button_spin 0.6s linear infinite;
+}
+
+@keyframes button_spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Animatsiyani o'chirgan foydalanuvchilar uchun */
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 2s; }
+}
+
 .primary {
   background-color: var(--color-accent);
   color: var(--color-text-on-accent);

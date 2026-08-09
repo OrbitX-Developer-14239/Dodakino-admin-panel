@@ -41,6 +41,51 @@ function FilmsPage() {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [posterFile, setPosterFile] = useState(null);
 
+  // AI to'ldirish holati
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiNotice, setAiNotice] = useState(null);
+
+  // Saqlash jarayoni (tugmadagi loader uchun)
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Poster: ko'rinish (preview), drag-drop va xato holati
+  const [posterPreview, setPosterPreview] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [posterError, setPosterError] = useState(null);
+
+  // Tanlangan rasm uchun vaqtinchalik URL. Fayl almashsa/olib tashlansa
+  // eskisi bo'shatiladi — aks holda xotirada to'planib qoladi.
+  useEffect(() => {
+    if (!posterFile) {
+      setPosterPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(posterFile);
+    setPosterPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [posterFile]);
+
+  const acceptPosterFile = (file) => {
+    if (!file) return;
+    if (!file.type?.startsWith("image/")) {
+      setPosterError("Faqat rasm fayli (jpg, png, webp) qabul qilinadi.");
+      return;
+    }
+    setPosterError(null);
+    setPosterFile(file);
+  };
+
+  const handlePosterDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    acceptPosterFile(e.dataTransfer.files?.[0]);
+  };
+
+  const formatSize = (bytes) =>
+    bytes < 1024 * 1024
+      ? `${Math.round(bytes / 1024)} KB`
+      : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+
   // ─── Filmlar ro'yxatini yuklash ────────────
   const fetchFilms = async (page = 1) => {
     setIsLoading(true);
@@ -116,6 +161,7 @@ function FilmsPage() {
       posterMsgId: film.posterId?.msgId || ""
     });
     setPosterFile(null);
+    setAiNotice(null);
     setIsEditModalOpen(true);
   };
 
@@ -123,11 +169,63 @@ function FilmsPage() {
     setEditingFilm(null);
     setFormData(EMPTY_FORM);
     setPosterFile(null);
+    setAiNotice(null);
     setIsEditModalOpen(true);
+  };
+
+  // ─── AI bilan to'ldirish ──────────────────
+  // Nom majburiy; yil/davlat kiritilgan bo'lsa bir xil nomli kinolarni ajratishga yordam beradi.
+  const handleAiFill = async () => {
+    const name = formData.name.trim();
+    if (!name) {
+      setAiNotice({ type: "error", text: "Avval kino nomini yozing." });
+      return;
+    }
+
+    setIsAiLoading(true);
+    setAiNotice(null);
+    try {
+      const res = await FilmService.aiSuggest({
+        name,
+        year: formData.year,
+        country: formData.country,
+      });
+
+      const film = res?.data?.film;
+      if (!film) throw new Error("AI javob qaytarmadi");
+
+      setFormData((prev) => ({
+        ...prev,
+        code: film.code ?? prev.code,
+        name: film.name || prev.name,
+        originalName: film.originalName || prev.originalName,
+        year: film.year || prev.year,
+        country: film.country || prev.country,
+        genres: (film.genres || []).join(", ") || prev.genres,
+        description: film.description || prev.description,
+      }));
+
+      setAiNotice(
+        film.found
+          ? { type: "ok", text: "To'ldirildi. Tavsifni o'qib chiqing — AI xato qilishi mumkin." }
+          : {
+            type: "warn",
+            text: "AI bu kinoni aniq tanimadi. Ma'lumotlar taxminiy — tekshirib chiqing " +
+              "yoki yil va davlatni yozib qayta urinib ko'ring.",
+          }
+      );
+    } catch (error) {
+      setAiNotice({ type: "error", text: "AI xatosi: " + (error?.message || "Noma'lum xato") });
+    } finally {
+      setIsAiLoading(false);
+    }
   };
 
   const handleSubmitEdit = async (e) => {
     e.preventDefault();
+    if (isSaving) return; // ikki marta yuborilmasin
+
+    setIsSaving(true);
     try {
       const genres = formData.genres.split(",").map(g => g.trim()).filter(Boolean);
 
@@ -170,6 +268,9 @@ function FilmsPage() {
       fetchFilms(currentPage);
     } catch (error) {
       alert("Xatolik: " + (error?.message || "Noma'lum xato"));
+    } finally {
+      // finally: poster yo'q bo'lib erta chiqilganda ham loader o'chadi
+      setIsSaving(false);
     }
   };
 
@@ -296,10 +397,30 @@ function FilmsPage() {
         title={editingFilm ? "Kinoni tahrirlash" : "Yangi kino qo'shish"}
       >
         <form onSubmit={handleSubmitEdit} className={styles.form}>
-          <Input label="Kino kodi" type="number" required value={formData.code}
-            onChange={(e) => setFormData({ ...formData, code: e.target.value })} />
           <Input label="Nomi" required value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+
+          {/* Nomdan boshqa hamma narsani AI to'ldiradi: kod, asl nom, yil,
+              davlat, janrlar va tavsif. Yil/davlat oldindan yozilgan bo'lsa,
+              bir xil nomli kinolarni ajratishga yordam beradi. */}
+          <div className={styles.ai_row}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleAiFill}
+              disabled={isAiLoading}
+            >
+              {isAiLoading ? "AI o'ylayapti..." : "✨ AI bilan to'ldirish"}
+            </Button>
+            {aiNotice && (
+              <span className={`${styles.ai_notice} ${styles["ai_" + aiNotice.type]}`}>
+                {aiNotice.text}
+              </span>
+            )}
+          </div>
+
+          <Input label="Kino kodi" type="number" required value={formData.code}
+            onChange={(e) => setFormData({ ...formData, code: e.target.value })} />
           <Input label="Asl nomi" required value={formData.originalName}
             onChange={(e) => setFormData({ ...formData, originalName: e.target.value })} />
           <div className={styles.grid_2}>
@@ -312,18 +433,98 @@ function FilmsPage() {
             onChange={(e) => setFormData({ ...formData, genres: e.target.value })} />
           {!editingFilm && (
             <>
-              <p className={styles.section_label}>Poster — quyidagi ikki yo'ldan birini tanlang</p>
-              <div className={styles.grid_2}>
-                <Input label="Kanal ID" placeholder="Masalan: 3831468244"
-                  value={formData.posterChannelId}
-                  onChange={(e) => setFormData({ ...formData, posterChannelId: e.target.value })} />
-                <Input label="Xabar ID (msgId)" type="number" placeholder="Masalan: 74"
-                  value={formData.posterMsgId}
-                  onChange={(e) => setFormData({ ...formData, posterMsgId: e.target.value })} />
+              <p className={styles.section_label}>Poster rasm</p>
+
+              {/* 1-usul: Telegram kanal orqali */}
+              <div className={styles.poster_method}>
+                <span className={styles.poster_method_label}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style={{flexShrink:0}}>
+                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.94z"/>
+                  </svg>
+                  Telegram kanaldan
+                </span>
+                <div className={styles.grid_2}>
+                  <Input label="Kanal ID" placeholder="Masalan: 3831468244"
+                    value={formData.posterChannelId}
+                    onChange={(e) => setFormData({ ...formData, posterChannelId: e.target.value })} />
+                  <Input label="Xabar ID (msgId)" type="number" placeholder="Masalan: 74"
+                    value={formData.posterMsgId}
+                    onChange={(e) => setFormData({ ...formData, posterMsgId: e.target.value })} />
+                </div>
               </div>
+
+              {/* YOKI ajratuvchi */}
+              <div className={styles.or_divider}>
+                <span className={styles.or_divider_line} />
+                <span className={styles.or_divider_text}>YOKI</span>
+                <span className={styles.or_divider_line} />
+              </div>
+
+              {/* 2-usul: Fayl yuklash */}
               <div className={styles.file_input}>
-                <label>...yoki rasm faylini yuklang</label>
-                <input type="file" accept="image/*" onChange={(e) => setPosterFile(e.target.files[0])} />
+                <span className={styles.poster_method_label}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{flexShrink:0}}>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                  Fayldan yuklang
+                </span>
+
+                <label
+                  htmlFor="poster-file"
+                  className={[
+                    styles.file_drop,
+                    posterFile ? styles.file_drop_filled : "",
+                    isDragging ? styles.file_drop_over : "",
+                  ].filter(Boolean).join(" ")}
+                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragEnter={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget)) setIsDragging(false);
+                  }}
+                  onDrop={handlePosterDrop}
+                >
+                  {posterPreview ? (
+                    /* Rasm to'liq qoplaydi — textlar ko'rinmaydi */
+                    <img src={posterPreview} alt="Poster ko'rinishi" className={styles.file_thumb} />
+                  ) : (
+                    /* Bo'sh holat */
+                    <>
+                      <span className={styles.file_thumb_empty}>🖼</span>
+                      <span className={styles.file_drop_texts}>
+                        <span className={styles.file_drop_name}>Rasmni bu yerga tashlang</span>
+                        <span className={styles.file_drop_hint}>yoki tanlash uchun bosing (JPG, PNG, WEBP)</span>
+                      </span>
+                    </>
+                  )}
+
+                  {/* O'chirish tugmasi — rasm ustida, absolute */}
+                  {posterFile && (
+                    <button
+                      type="button"
+                      className={styles.file_clear}
+                      title="Bekor qilish"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setPosterFile(null);
+                        setPosterError(null);
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </label>
+
+                {posterError && <span className={styles.file_error}>{posterError}</span>}
+
+                <input
+                  id="poster-file"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => acceptPosterFile(e.target.files[0])}
+                />
               </div>
             </>
           )}
@@ -333,8 +534,17 @@ function FilmsPage() {
               onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
           </div>
           <div className={styles.modal_actions}>
-            <Button type="button" variant="ghost" onClick={() => setIsEditModalOpen(false)}>Bekor</Button>
-            <Button type="submit" variant="primary">Saqlash</Button>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={isSaving}
+              onClick={() => setIsEditModalOpen(false)}
+            >
+              Bekor
+            </Button>
+            <Button type="submit" variant="primary" loading={isSaving}>
+              {isSaving ? "Saqlanmoqda..." : "Saqlash"}
+            </Button>
           </div>
         </form>
       </Modal>

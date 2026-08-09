@@ -7,6 +7,8 @@ import styles from "../index.module.scss";
 
 function AddEpisodeModal({ film, onClose, onSuccess }) {
   const [isSaving, setIsSaving] = useState(false);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiNotice, setAiNotice] = useState(null);
   const [formData, setFormData] = useState({
     code: "",
     episodeNumber: "",
@@ -56,6 +58,39 @@ function AddEpisodeModal({ film, onClose, onSuccess }) {
 
   const update = (field) => (e) => setFormData({ ...formData, [field]: e.target.value });
 
+  // Qism nomi, tavsifi va bo'sh kodni AI to'ldiradi.
+  // Serial ma'lumoti (nomi, yili, davlati) backendda filmId bo'yicha olinadi.
+  const handleAiFill = async () => {
+    setIsAiLoading(true);
+    setAiNotice(null);
+    try {
+      const res = await EpisodeService.aiSuggest({
+        filmId: film._id,
+        episodeNumber: Number(formData.episodeNumber) || 1,
+      });
+
+      const ep = res?.data?.episode;
+      if (!ep) throw new Error("AI javob qaytarmadi");
+
+      setFormData((prev) => ({
+        ...prev,
+        code: ep.code ?? prev.code,
+        name: ep.name || prev.name,
+        description: ep.description || prev.description,
+      }));
+
+      setAiNotice(
+        ep.found
+          ? { type: "ok", text: "To'ldirildi. Matnni o'qib chiqing." }
+          : { type: "warn", text: "AI bu qismni aniq tanimadi — matn taxminiy, tekshiring." }
+      );
+    } catch (error) {
+      setAiNotice({ type: "error", text: "AI xatosi: " + (error?.message || "Noma'lum xato") });
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
   return (
     <Modal isOpen={true} onClose={onClose} title={`"${film?.name}" ga qism qo'shish`}>
       <form onSubmit={handleSubmit} className={styles.ep_edit_form}>
@@ -82,6 +117,17 @@ function AddEpisodeModal({ film, onClose, onSuccess }) {
           value={formData.name}
           onChange={update("name")}
         />
+
+        <div className={styles.ai_row}>
+          <Button type="button" variant="ghost" onClick={handleAiFill} disabled={isAiLoading}>
+            {isAiLoading ? "AI o'ylayapti..." : "✨ AI bilan to'ldirish"}
+          </Button>
+          {aiNotice && (
+            <span className={`${styles.ai_notice} ${styles["ai_" + aiNotice.type]}`}>
+              {aiNotice.text}
+            </span>
+          )}
+        </div>
 
         <p className={styles.section_label}>Video fayl (Telegram)</p>
         <div className={styles.grid_2}>
@@ -139,7 +185,7 @@ function AddEpisodeModal({ film, onClose, onSuccess }) {
 
         <div className={styles.modal_actions}>
           <Button type="button" variant="ghost" onClick={onClose}>Bekor qilish</Button>
-          <Button type="submit" variant="primary" disabled={isSaving}>
+          <Button type="submit" variant="primary" loading={isSaving}>
             {isSaving ? "Saqlanmoqda..." : "Qo'shish"}
           </Button>
         </div>
