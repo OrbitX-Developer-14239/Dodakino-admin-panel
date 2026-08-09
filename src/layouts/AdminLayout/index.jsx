@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import styles from "./AdminLayout.module.scss";
-import Asset from "@asset";
 import { TokenManager } from "../../api/tokenManager";
 import AdminService from "../../api/services/authService";
 import { initSocket, disconnectSocket } from "../../api/socket";

@@ -81,11 +81,6 @@ function FilmsPage() {
     acceptPosterFile(e.dataTransfer.files?.[0]);
   };
 
-  const formatSize = (bytes) =>
-    bytes < 1024 * 1024
-      ? `${Math.round(bytes / 1024)} KB`
-      : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-
   // ─── Filmlar ro'yxatini yuklash ────────────
   const fetchFilms = async (page = 1) => {
     setIsLoading(true);

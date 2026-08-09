@@ -122,9 +122,8 @@ function Auth() {
                 <Asset.Icon name="lock" className={styles.icon} aria-hidden="true" fill={"transparent"} stroke={"0.7px solid var(--color-text-secondary)"} />
                 <input id="password" name="password" type={showPassword ? "text" : "password"} className={styles.input} placeholder=" " autoComplete="current-password" required aria-required="true" aria-label="Administrator istrator paroli" />
                 <button
-                className={styles.button}
-                  role="button"
-                  tabIndex={0}
+                  type="button"
+                  className={styles.button}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={(e) => {
                     e.preventDefault();

@@ -13,7 +13,7 @@
 import { images, icons } from '../static/main';
 import { logError } from '../utils/logger';
 import { isRemoteUrl } from '../utils/svgInject';
-import { memoryCache, resolveImage, resolveSvgText } from './cache';
+import { resolveImage, resolveSvgText } from './cache';
 
 /* ------------------------------------------------------------------ */
 /*  Alias registries – alias → URL maps */
