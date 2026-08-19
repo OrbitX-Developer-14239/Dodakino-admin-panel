@@ -176,20 +176,46 @@
     }
 
     .header_right {
+      // Bot tanlagich — theme_btn bilan bir xil dizayn tili:
+      // panelning o'z rang tokenlari, ikkala (yorug'/qorong'u) rejimda ishlaydi
       .bot_select {
         margin-right: 12px;
-        padding: 8px 12px;
+        padding: 8px 34px 8px 14px;
         border-radius: 8px;
-        border: 1px solid var(--border-color, #d0d5dd);
-        background: var(--bg-secondary, #fff);
-        color: var(--text-primary, #111);
+        border: 1px solid var(--color-border-primary);
+        background-color: var(--color-bg-secondary);
+        color: var(--color-text-primary);
         font-size: 14px;
+        font-weight: 500;
+        line-height: 1.4;
         cursor: pointer;
-        max-width: 200px;
+        max-width: 220px;
+        transition: all 0.2s ease;
+
+        // Standart strelka o'rniga o'zimizniki — har brauzerda bir xil
+        appearance: none;
+        -webkit-appearance: none;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%238b93a1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+
+        &:hover {
+          border-color: var(--color-accent);
+        }
 
         &:focus {
           outline: none;
-          border-color: #1ec442;
+          border-color: var(--color-accent);
+          box-shadow: 0 0 0 3px var(--color-accent-soft);
+        }
+
+        option {
+          background-color: var(--color-bg-secondary);
+          color: var(--color-text-primary);
+
+          &:disabled {
+            color: var(--color-text-muted);
+          }
         }
       }
 

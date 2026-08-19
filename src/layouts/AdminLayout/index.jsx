@@ -149,6 +149,7 @@ const AdminLayout = () => {
               >
                 {bots.map((b) => (
                   <option key={b.botId} value={b.botId} disabled={!b.active}>
+                    {"🤖 "}
                     {b.username ? `@${b.username}` : b.botId}
                     {b.active ? "" : " (ulanmagan)"}
                   </option>
