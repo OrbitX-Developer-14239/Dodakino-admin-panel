@@ -18,6 +18,17 @@ const ChannelService = {
   },
 
   /**
+   * Bot a'zo bo'lgan kanal/guruhlar — har biri uchun telegram ID, nomi va
+   * botning admin yoki oddiy a'zo ekani. Yangi kanal shu ro'yxatdan tanlanadi.
+   * @param {boolean} refresh - false bo'lsa Telegramga bormaydi (tezroq)
+   * @returns {Promise<any>}
+   * @swagger GET /api/channel/available
+   */
+  async getAvailable(refresh = true) {
+    return client.get(ENDPOINTS.CHANNELS.AVAILABLE, { params: { refresh: String(refresh) } });
+  },
+
+  /**
    * Bitta kanal + statistika
    * @param {string} id 
    * @returns {Promise<any>}

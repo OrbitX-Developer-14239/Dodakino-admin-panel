@@ -138,3 +138,123 @@
     accent-color: var(--color-accent);
   }
 }
+
+// ─── Bot a'zo bo'lgan chatlar ro'yxati ────────────────
+.available_head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.refresh_btn {
+  border: none;
+  background: none;
+  color: var(--color-accent);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 2px 4px;
+
+  &:disabled {
+    color: var(--color-text-muted);
+    cursor: not-allowed;
+  }
+}
+
+.available_hint {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 0;
+  padding: 12px;
+  background: var(--color-bg-secondary);
+  border-radius: 8px;
+  line-height: 1.5;
+}
+
+.available_list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.available_item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  border-radius: 8px;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-primary);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+
+  &:hover:not(:disabled) {
+    border-color: var(--color-accent);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.available_item_active {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.available_title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.available_user {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.available_meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+
+  code {
+    font-family: monospace;
+    background: var(--color-bg-secondary);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+}
+
+.badge_admin,
+.badge_member,
+.badge_added {
+  padding: 1px 8px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+.badge_admin {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-text);
+}
+
+.badge_member {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-muted);
+}
+
+.badge_added {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+}

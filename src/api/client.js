@@ -13,6 +13,7 @@
 import axios from "axios";
 import { TokenManager } from "./tokenManager";
 import { ApiError } from "./errors";
+import { getSelectedBotId, TENANT_PATH_PREFIXES } from "./botContext";
 
 // ─── Axios Instance ──────────────────────────────────────────────
 const client = axios.create({
@@ -52,6 +53,20 @@ client.interceptors.request.use(
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    // ── Multibot: kontent so'rovlariga tanlangan bot prefiksi ──
+    // /film -> /8288956451/film . Tanlanmagan bo'lsa prefiks yo'q,
+    // backend bunday so'rovni asosiy (birinchi) botga yo'naltiradi.
+    // /admin, /logs, /instagram kabi umumiy yo'llar tegilmaydi.
+    const botId = getSelectedBotId();
+    if (
+      botId &&
+      config.url &&
+      !config.url.startsWith(`/${botId}/`) &&
+      TENANT_PATH_PREFIXES.some((p) => config.url.startsWith(p))
+    ) {
+      config.url = `/${botId}${config.url}`;
     }
 
     // Development rejimida har bir so'rovni log qilamiz

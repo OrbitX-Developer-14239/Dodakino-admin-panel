@@ -22,6 +22,23 @@ function ChannelsPage() {
     isPrivate: false
   });
 
+  // Bot a'zo bo'lgan chatlar — yangi kanal shu ro'yxatdan tanlanadi
+  const [available, setAvailable] = useState([]);
+  const [isAvailableLoading, setIsAvailableLoading] = useState(false);
+
+  const fetchAvailable = async (refresh = true) => {
+    setIsAvailableLoading(true);
+    try {
+      const res = await ChannelsService.getAvailable(refresh);
+      setAvailable(res?.data || []);
+    } catch (error) {
+      console.error("Chatlar ro'yxatini olishda xatolik:", error);
+      setAvailable([]);
+    } finally {
+      setIsAvailableLoading(false);
+    }
+  };
+
   const fetchChannels = async () => {
     setIsLoading(true);
     try {
@@ -58,6 +75,8 @@ function ChannelsPage() {
         is_active: true,
         isPrivate: false
       });
+      // Yangi kanal qo'shilayotganda ro'yxatni yangilab olamiz
+      fetchAvailable(true);
     }
     setIsModalOpen(true);
   };
@@ -173,14 +192,68 @@ function ChannelsPage() {
             onChange={(e) => setFormData({...formData, name: e.target.value})} 
           />
 
-          {/* Telegram ID faqat yaratishda talab qilinadi */}
+          {/* Telegram ID faqat yaratishda talab qilinadi.
+              Bot a'zo bo'lgan chatlar ro'yxatidan tanlanadi; qo'lda yozish ham mumkin. */}
           {!editingChannel && (
-            <Input 
-              label="Kanal Telegram ID (masalan: -1001234567890)" 
-              required 
-              value={formData.telegram_id} 
-              onChange={(e) => setFormData({...formData, telegram_id: e.target.value})} 
-            />
+            <div className={styles.select_wrapper}>
+              <div className={styles.available_head}>
+                <label>Bot a'zo bo'lgan kanal/guruhlar</label>
+                <button
+                  type="button"
+                  className={styles.refresh_btn}
+                  onClick={() => fetchAvailable(true)}
+                  disabled={isAvailableLoading}
+                >
+                  {isAvailableLoading ? "Tekshirilmoqda..." : "🔄 Yangilash"}
+                </button>
+              </div>
+
+              {isAvailableLoading && !available.length ? (
+                <p className={styles.available_hint}>Telegramdan holat olinmoqda...</p>
+              ) : available.length === 0 ? (
+                <p className={styles.available_hint}>
+                  Ro'yxat bo'sh. Botni kanalga admin qilib qo'shing — u shu yerda
+                  o'zi paydo bo'ladi. Yoki ID ni pastga qo'lda yozing.
+                </p>
+              ) : (
+                <div className={styles.available_list}>
+                  {available.map((chat) => (
+                    <button
+                      key={chat.telegram_id}
+                      type="button"
+                      disabled={chat.already_added || !chat.is_admin}
+                      className={`${styles.available_item} ${formData.telegram_id === chat.telegram_id ? styles.available_item_active : ""}`}
+                      onClick={() => setFormData({
+                        ...formData,
+                        telegram_id: chat.telegram_id,
+                        name: formData.name || chat.title || "",
+                      })}
+                    >
+                      <span className={styles.available_title}>
+                        {chat.title || "(nomsiz)"}
+                        {chat.username && <span className={styles.available_user}> @{chat.username}</span>}
+                      </span>
+                      <span className={styles.available_meta}>
+                        <code>{chat.telegram_id}</code>
+                        <span className={chat.is_admin ? styles.badge_admin : styles.badge_member}>
+                          {chat.is_admin ? "admin" : (chat.bot_status || "a'zo")}
+                        </span>
+                        {chat.member_count != null && <span>{chat.member_count} a'zo</span>}
+                        {chat.already_added && <span className={styles.badge_added}>qo'shilgan</span>}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <Input
+                label="Kanal Telegram ID"
+                required
+                placeholder="-1001234567890"
+                value={formData.telegram_id}
+                onChange={(e) => setFormData({ ...formData, telegram_id: e.target.value })}
+              />
+            </div>
           )}
 
           <div className={styles.select_wrapper}>

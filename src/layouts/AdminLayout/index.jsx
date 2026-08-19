@@ -3,6 +3,8 @@ import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import styles from "./AdminLayout.module.scss";
 import { TokenManager } from "../../api/tokenManager";
 import AdminService from "../../api/services/authService";
+import BotService from "../../api/services/botService";
+import { getSelectedBotId, setSelectedBotId } from "../../api/botContext";
 import { initSocket, disconnectSocket } from "../../api/socket";
 
 const AdminLayout = () => {
@@ -10,7 +12,22 @@ const AdminLayout = () => {
   const [isDarkMode, setIsDarkMode] = useState(
     localStorage.getItem("theme") === "dark"
   );
+  // Multibot: sozlangan botlar ro'yxati va tanlangani.
+  // Kontent so'rovlari (filmlar, kanallar, ...) tanlangan botning
+  // bazasiga boradi — prefiksni client.js avtomatik qo'shadi.
+  const [bots, setBots] = useState([]);
+  const selectedBotId = getSelectedBotId();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    BotService.list()
+      .then((res) => setBots(res?.data || []))
+      .catch(() => setBots([]));
+  }, []);
+
+  const handleBotChange = (e) => {
+    setSelectedBotId(e.target.value); // sahifani qayta yuklaydi
+  };
 
   useEffect(() => {
     initSocket();
@@ -123,6 +140,21 @@ const AdminLayout = () => {
             <h2 className={styles.page_title}>Boshqaruv paneli</h2>
           </div>
           <div className={styles.header_right}>
+            {bots.length > 1 && (
+              <select
+                className={styles.bot_select}
+                value={selectedBotId || String(bots[0]?.botId || "")}
+                onChange={handleBotChange}
+                title="Qaysi botning ma'lumotlari ko'rsatilsin"
+              >
+                {bots.map((b) => (
+                  <option key={b.botId} value={b.botId} disabled={!b.active}>
+                    {b.username ? `@${b.username}` : b.botId}
+                    {b.active ? "" : " (ulanmagan)"}
+                  </option>
+                ))}
+              </select>
+            )}
             <button className={styles.theme_btn} onClick={toggleTheme}>
               {isDarkMode ? "☀️ Yoritish" : "🌙 Qorong'ulashtirish"}
             </button>

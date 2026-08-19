@@ -58,6 +58,8 @@ export const ENDPOINTS = {
   CHANNELS: {
     CREATE: "/channel",
     LIST: "/channel",
+    // Bot a'zo bo'lgan kanal/guruhlar — yangi kanal shu ro'yxatdan tanlanadi
+    AVAILABLE: "/channel/available",
     DETAIL: (id) => `/channel/${id}`,
     DELETE: (id) => `/channel/${id}`,
   },
@@ -68,9 +70,10 @@ export const ENDPOINTS = {
     TOP: "/statistics/top",
   },
   
-  // ─── BOT ────────────────────────────────────────────────────
+  // ─── BOT (multibot) ──────────────────────────────────────────
+  // Tokenlar backend .env da — panel faqat ro'yxat va ma'lumot o'qiydi
   BOT: {
-    TOKENS: "/bot/get",
-    UPDATE: "/bot/update",
+    LIST: "/bot/list",
+    INFO: "/bot/info",
   }
 };
