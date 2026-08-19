@@ -7,24 +7,46 @@ import Input from "../../components/ui/Input";
 import Modal from "../../components/ui/Modal";
 import ChannelsService from "../../api/services/channelService";
 
+/**
+ * Kanallar sahifasi — ikki bo'lim:
+ *   TEPADA: Majburiy obuna kanallari (qo'shilganlar) — tahrirlash/o'chirish
+ *   PASTDA: Bot a'zo bo'lgan kanal/guruhlar — har qatorning o'ngida
+ *           "Majburiy kanallarga qo'shish" tugmasi
+ *
+ * Qo'shishda kanal nomi ATAYLAB avtomatik yozilmaydi: bu yozuv botning
+ * obuna tugmasida ko'rinadi, admin uni o'zi xohlagancha yozadi.
+ */
 function ChannelsPage() {
   const [channels, setChannels] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingChannel, setEditingChannel] = useState(null);
 
-  // Yaratish uchun forma (Backend: telegram_id, name, join_type, is_active, isPrivate)
-  const [formData, setFormData] = useState({
-    name: "",
-    telegram_id: "",
-    join_type: "request",
-    is_active: true,
-    isPrivate: false
-  });
-
-  // Bot a'zo bo'lgan chatlar — yangi kanal shu ro'yxatdan tanlanadi
   const [available, setAvailable] = useState([]);
   const [isAvailableLoading, setIsAvailableLoading] = useState(false);
+
+  // Tahrirlash oynasi (mavjud majburiy kanal uchun)
+  const [editingChannel, setEditingChannel] = useState(null);
+
+  // Qo'shish oynasi (pastdagi ro'yxatdan tanlangan chat uchun)
+  const [addingChat, setAddingChat] = useState(null);
+
+  const [formData, setFormData] = useState({
+    name: "",
+    join_type: "request",
+    is_active: true,
+    isPrivate: false,
+  });
+
+  const fetchChannels = async () => {
+    setIsLoading(true);
+    try {
+      const res = await ChannelsService.getList();
+      setChannels(res?.data || res || []);
+    } catch (error) {
+      console.error("Kanallarni yuklashda xatolik:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const fetchAvailable = async (refresh = true) => {
     setIsAvailableLoading(true);
@@ -39,65 +61,56 @@ function ChannelsPage() {
     }
   };
 
-  const fetchChannels = async () => {
-    setIsLoading(true);
-    try {
-      const res = await ChannelsService.getList();
-      // Backend: { success: true, data: [...] }
-      setChannels(res?.data || res || []);
-    } catch (error) {
-      console.error("Kanallarni yuklashda xatolik:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
     fetchChannels();
+    fetchAvailable(true);
   }, []);
 
-  const handleOpenModal = (channel = null) => {
-    if (channel) {
-      setEditingChannel(channel);
-      setFormData({
-        name: channel.name || "",
-        telegram_id: channel.telegram_id || "",
-        join_type: channel.join_type || "request",
-        is_active: channel.is_active ?? true,
-        isPrivate: channel.isPrivate ?? false
-      });
-    } else {
-      setEditingChannel(null);
-      setFormData({
-        name: "",
-        telegram_id: "",
-        join_type: "request",
-        is_active: true,
-        isPrivate: false
-      });
-      // Yangi kanal qo'shilayotganda ro'yxatni yangilab olamiz
-      fetchAvailable(true);
-    }
-    setIsModalOpen(true);
+  // ── Qo'shish: pastdagi ro'yxatdan tanlanadi, nom QO'LDA yoziladi ──
+  const handleOpenAdd = (chat) => {
+    setAddingChat(chat);
+    setFormData({
+      // Nom bo'sh — botdagi obuna tugmasida qanday yozuv tursa,
+      // admin shuni o'zi yozadi
+      name: "",
+      join_type: "request",
+      is_active: true,
+      isPrivate: false,
+    });
   };
 
-  const handleSubmit = async (e) => {
+  const handleAddSubmit = async (e) => {
     e.preventDefault();
     try {
-      if (editingChannel) {
-        // Tahrirlash — faqat name, join_type, is_active, isPrivate yuboriladi
-        const updatePayload = {
-          name: formData.name,
-          join_type: formData.join_type,
-          is_active: formData.is_active,
-          isPrivate: formData.isPrivate
-        };
-        await ChannelsService.update(editingChannel._id, updatePayload);
-      } else {
-        // Yaratish — telegram_id va name majburiy
-        await ChannelsService.create(formData);
-      }
-      setIsModalOpen(false);
+      await ChannelsService.create({
+        telegram_id: addingChat.telegram_id,
+        ...formData,
+      });
+      setAddingChat(null);
+      fetchChannels();
+      fetchAvailable(false);
+    } catch (error) {
+      console.error("Qo'shishda xatolik:", error);
+      alert("Xatolik: " + (error?.message || "Noma'lum xato"));
+    }
+  };
+
+  // ── Tahrirlash (mavjud majburiy kanal) ──
+  const handleOpenEdit = (channel) => {
+    setEditingChannel(channel);
+    setFormData({
+      name: channel.name || "",
+      join_type: channel.join_type || "request",
+      is_active: channel.is_active ?? true,
+      isPrivate: channel.isPrivate ?? false,
+    });
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await ChannelsService.update(editingChannel._id, formData);
+      setEditingChannel(null);
       fetchChannels();
     } catch (error) {
       console.error("Saqlashda xatolik:", error);
@@ -106,10 +119,11 @@ function ChannelsPage() {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Rostdan ham bu kanalni o'chirmoqchimisiz?")) {
+    if (window.confirm("Rostdan ham bu kanalni majburiy obunadan olib tashlamoqchimisiz?")) {
       try {
         await ChannelsService.delete(id);
         fetchChannels();
+        fetchAvailable(false);
       } catch (error) {
         console.error("O'chirishda xatolik:", error);
         alert("O'chirishda xatolik: " + (error?.message || "Noma'lum xato"));
@@ -118,14 +132,14 @@ function ChannelsPage() {
   };
 
   const columns = [
-    { title: "Nomi", key: "name" },
-    { 
-      title: "Telegram ID", 
+    { title: "Tugmadagi yozuv", key: "name" },
+    {
+      title: "Telegram ID",
       key: "telegram_id",
       width: "180px"
     },
-    { 
-      title: "Ulanish turi", 
+    {
+      title: "Ulanish turi",
       key: "join_type",
       width: "130px",
       render: (val) => (
@@ -134,15 +148,15 @@ function ChannelsPage() {
         </span>
       )
     },
-    { 
-      title: "Havola", 
+    {
+      title: "Havola",
       key: "invite_link",
-      render: (val) => val 
-        ? <a href={val} target="_blank" rel="noreferrer" className={styles.link}>Havola</a> 
+      render: (val) => val
+        ? <a href={val} target="_blank" rel="noreferrer" className={styles.link}>Havola</a>
         : "—"
     },
-    { 
-      title: "Holat", 
+    {
+      title: "Holat",
       key: "is_active",
       width: "90px",
       render: (val) => (
@@ -151,117 +165,181 @@ function ChannelsPage() {
         </span>
       )
     },
-    { 
-      title: "Amallar", 
-      key: "actions", 
+    {
+      title: "Amallar",
+      key: "actions",
       width: "160px",
       render: (_, channel) => (
         <div className={styles.actions}>
-          <Button variant="ghost" onClick={() => handleOpenModal(channel)}>Tahrirlash</Button>
+          <Button variant="ghost" onClick={() => handleOpenEdit(channel)}>Tahrirlash</Button>
           <Button variant="danger" onClick={() => handleDelete(channel._id)}>O'chirish</Button>
         </div>
       )
     }
   ];
 
+  // Ro'yxatda allaqachon majburiy bo'lganlarni belgilash uchun
+  const addedIds = new Set(channels.map((c) => String(c.telegram_id)));
+
   return (
     <div className={styles.wrapper}>
+      {/* ── TEPADA: majburiy obuna kanallari ── */}
       <Card>
         <div className={styles.toolbar}>
-          <h3>Majburiy Obuna Kanallari</h3>
-          <Button variant="primary" onClick={() => handleOpenModal()}>+ Kanal qo'shish</Button>
+          <h3>Majburiy obuna kanallari</h3>
         </div>
 
-        <Table 
-          columns={columns} 
-          data={channels} 
-          isLoading={isLoading} 
+        <Table
+          columns={columns}
+          data={channels}
+          isLoading={isLoading}
         />
       </Card>
 
-      <Modal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)}
-        title={editingChannel ? "Kanalni tahrirlash" : "Yangi kanal qo'shish"}
-      >
-        <form onSubmit={handleSubmit} className={styles.form}>
-          <Input 
-            label="Kanal nomi" 
-            required 
-            value={formData.name} 
-            onChange={(e) => setFormData({...formData, name: e.target.value})} 
-          />
+      {/* ── PASTDA: bot a'zo bo'lgan kanal/guruhlar ── */}
+      <Card>
+        <div className={styles.toolbar}>
+          <h3>Bot a'zo bo'lgan kanal/guruhlar</h3>
+          <button
+            type="button"
+            className={styles.refresh_btn}
+            onClick={() => fetchAvailable(true)}
+            disabled={isAvailableLoading}
+          >
+            {isAvailableLoading ? "Tekshirilmoqda..." : "🔄 Yangilash"}
+          </button>
+        </div>
 
-          {/* Telegram ID faqat yaratishda talab qilinadi.
-              Bot a'zo bo'lgan chatlar ro'yxatidan tanlanadi; qo'lda yozish ham mumkin. */}
-          {!editingChannel && (
-            <div className={styles.select_wrapper}>
-              <div className={styles.available_head}>
-                <label>Bot a'zo bo'lgan kanal/guruhlar</label>
-                <button
-                  type="button"
-                  className={styles.refresh_btn}
-                  onClick={() => fetchAvailable(true)}
-                  disabled={isAvailableLoading}
-                >
-                  {isAvailableLoading ? "Tekshirilmoqda..." : "🔄 Yangilash"}
-                </button>
-              </div>
+        {isAvailableLoading && !available.length ? (
+          <p className={styles.available_hint}>Telegramdan holat olinmoqda...</p>
+        ) : available.length === 0 ? (
+          <p className={styles.available_hint}>
+            Ro'yxat bo'sh. Botni kanalga admin qilib qo'shing — u shu yerda
+            o'zi paydo bo'ladi.
+          </p>
+        ) : (
+          <div className={styles.available_rows}>
+            {available.map((chat) => {
+              const alreadyAdded = chat.already_added || addedIds.has(String(chat.telegram_id));
+              return (
+                <div key={chat.telegram_id} className={styles.available_row}>
+                  <div className={styles.row_info}>
+                    <span className={styles.available_title}>
+                      {chat.title || "(nomsiz)"}
+                      {chat.username && <span className={styles.available_user}> @{chat.username}</span>}
+                    </span>
+                    <span className={styles.available_meta}>
+                      <code>{chat.telegram_id}</code>
+                      <span className={chat.is_admin ? styles.badge_admin : styles.badge_member}>
+                        {chat.is_admin ? "admin" : (chat.bot_status || "a'zo")}
+                      </span>
+                      {chat.member_count != null && <span>{chat.member_count} a'zo</span>}
+                    </span>
+                  </div>
 
-              {isAvailableLoading && !available.length ? (
-                <p className={styles.available_hint}>Telegramdan holat olinmoqda...</p>
-              ) : available.length === 0 ? (
-                <p className={styles.available_hint}>
-                  Ro'yxat bo'sh. Botni kanalga admin qilib qo'shing — u shu yerda
-                  o'zi paydo bo'ladi. Yoki ID ni pastga qo'lda yozing.
-                </p>
-              ) : (
-                <div className={styles.available_list}>
-                  {available.map((chat) => (
-                    <button
-                      key={chat.telegram_id}
-                      type="button"
-                      disabled={chat.already_added || !chat.is_admin}
-                      className={`${styles.available_item} ${formData.telegram_id === chat.telegram_id ? styles.available_item_active : ""}`}
-                      onClick={() => setFormData({
-                        ...formData,
-                        telegram_id: chat.telegram_id,
-                        name: formData.name || chat.title || "",
-                      })}
+                  {alreadyAdded ? (
+                    <span className={styles.badge_added}>✓ Majburiy obunada</span>
+                  ) : (
+                    <Button
+                      variant="primary"
+                      disabled={!chat.is_admin}
+                      title={chat.is_admin ? "" : "Bot bu kanalda admin emas"}
+                      onClick={() => handleOpenAdd(chat)}
                     >
-                      <span className={styles.available_title}>
-                        {chat.title || "(nomsiz)"}
-                        {chat.username && <span className={styles.available_user}> @{chat.username}</span>}
-                      </span>
-                      <span className={styles.available_meta}>
-                        <code>{chat.telegram_id}</code>
-                        <span className={chat.is_admin ? styles.badge_admin : styles.badge_member}>
-                          {chat.is_admin ? "admin" : (chat.bot_status || "a'zo")}
-                        </span>
-                        {chat.member_count != null && <span>{chat.member_count} a'zo</span>}
-                        {chat.already_added && <span className={styles.badge_added}>qo'shilgan</span>}
-                      </span>
-                    </button>
-                  ))}
+                      + Majburiy kanallarga qo'shish
+                    </Button>
+                  )}
                 </div>
-              )}
+              );
+            })}
+          </div>
+        )}
+      </Card>
 
-              <Input
-                label="Kanal Telegram ID"
-                required
-                placeholder="-1001234567890"
-                value={formData.telegram_id}
-                onChange={(e) => setFormData({ ...formData, telegram_id: e.target.value })}
-              />
+      {/* ── Qo'shish oynasi ── */}
+      <Modal
+        isOpen={!!addingChat}
+        onClose={() => setAddingChat(null)}
+        title="Majburiy kanallarga qo'shish"
+      >
+        {addingChat && (
+          <form onSubmit={handleAddSubmit} className={styles.form}>
+            <div className={styles.selected_chat}>
+              <span className={styles.available_title}>{addingChat.title || "(nomsiz)"}</span>
+              <code>{addingChat.telegram_id}</code>
             </div>
-          )}
+
+            <Input
+              label="Tugmadagi yozuv"
+              required
+              autoFocus
+              placeholder="Masalan: Bizning kanal 🎬"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            />
+            <p className={styles.field_hint}>
+              Bot obuna so'raganda tugmada aynan shu yozuv ko'rinadi.
+            </p>
+
+            <div className={styles.select_wrapper}>
+              <label>Ulanish turi</label>
+              <select
+                className={styles.select}
+                value={formData.join_type}
+                onChange={(e) => setFormData({ ...formData, join_type: e.target.value })}
+              >
+                <option value="request">So'rovli (obuna talab qilinadi)</option>
+                <option value="public">Ochiq (to'g'ridan-to'g'ri)</option>
+              </select>
+            </div>
+
+            <div className={styles.checkbox_row}>
+              <label className={styles.checkbox_label}>
+                <input
+                  type="checkbox"
+                  checked={formData.is_active}
+                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                />
+                <span>Faol holat</span>
+              </label>
+              <label className={styles.checkbox_label}>
+                <input
+                  type="checkbox"
+                  checked={formData.isPrivate}
+                  onChange={(e) => setFormData({ ...formData, isPrivate: e.target.checked })}
+                />
+                <span>Maxfiy kanal</span>
+              </label>
+            </div>
+
+            <div className={styles.modal_actions}>
+              <Button type="button" variant="ghost" onClick={() => setAddingChat(null)}>Bekor qilish</Button>
+              <Button type="submit" variant="primary">Qo'shish</Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* ── Tahrirlash oynasi ── */}
+      <Modal
+        isOpen={!!editingChannel}
+        onClose={() => setEditingChannel(null)}
+        title="Kanalni tahrirlash"
+      >
+        <form onSubmit={handleEditSubmit} className={styles.form}>
+          <Input
+            label="Tugmadagi yozuv"
+            required
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          />
 
           <div className={styles.select_wrapper}>
             <label>Ulanish turi</label>
             <select
               className={styles.select}
               value={formData.join_type}
-              onChange={(e) => setFormData({...formData, join_type: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, join_type: e.target.value })}
             >
               <option value="request">So'rovli (obuna talab qilinadi)</option>
               <option value="public">Ochiq (to'g'ridan-to'g'ri)</option>
@@ -273,7 +351,7 @@ function ChannelsPage() {
               <input
                 type="checkbox"
                 checked={formData.is_active}
-                onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
+                onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
               />
               <span>Faol holat</span>
             </label>
@@ -281,14 +359,14 @@ function ChannelsPage() {
               <input
                 type="checkbox"
                 checked={formData.isPrivate}
-                onChange={(e) => setFormData({...formData, isPrivate: e.target.checked})}
+                onChange={(e) => setFormData({ ...formData, isPrivate: e.target.checked })}
               />
               <span>Maxfiy kanal</span>
             </label>
           </div>
 
           <div className={styles.modal_actions}>
-            <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Bekor qilish</Button>
+            <Button type="button" variant="ghost" onClick={() => setEditingChannel(null)}>Bekor qilish</Button>
             <Button type="submit" variant="primary">Saqlash</Button>
           </div>
         </form>
