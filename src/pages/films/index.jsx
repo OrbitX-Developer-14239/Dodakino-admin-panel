@@ -15,6 +15,10 @@ import AddEpisodeModal from "./components/AddEpisodeModal";
 const EMPTY_FORM = {
   code: "", name: "", originalName: "", year: "",
   country: "", genres: "", description: "",
+  // Fasllar soni. 1 = oddiy film/serial: botda qismlar to'g'ridan-to'g'ri
+  // chiqadi va "fasl" so'zi umuman ko'rinmaydi. 2+ bo'lsa bot avval
+  // "1-fasl, 2-fasl" tugmalarini ko'rsatadi.
+  seasonsCount: "1",
   posterChannelId: "", posterMsgId: ""
 };
 
@@ -150,6 +154,7 @@ function FilmsPage() {
       originalName: film.originalName || "",
       year: film.year || "",
       country: film.country || "",
+      seasonsCount: String(film.seasonsCount || 1),
       genres: (film.genres || []).join(", "),
       description: film.description || "",
       posterChannelId: film.posterId?.channelId || "",
@@ -233,6 +238,7 @@ function FilmsPage() {
           year: Number(formData.year),
           country: formData.country,
           description: formData.description,
+          seasonsCount: Number(formData.seasonsCount) || 1,
           genres
         });
       } else {
@@ -244,7 +250,7 @@ function FilmsPage() {
         }
 
         const fd = new FormData();
-        ["code", "name", "originalName", "year", "country", "description"]
+        ["code", "name", "originalName", "year", "country", "description", "seasonsCount"]
           .forEach(key => fd.append(key, formData[key]));
         genres.forEach(genre => fd.append("genres[]", genre));
 
@@ -424,6 +430,10 @@ function FilmsPage() {
             <Input label="Mamlakat" required value={formData.country}
               onChange={(e) => setFormData({ ...formData, country: e.target.value })} />
           </div>
+          {/* 1 bo'lsa botda fasl tugmalari umuman chiqmaydi (hozirgi holat).
+              2+ bo'lsa avval fasl tanlash tugmalari ko'rsatiladi. */}
+          <Input label="Fasllar soni" type="number" min="1" value={formData.seasonsCount}
+            onChange={(e) => setFormData({ ...formData, seasonsCount: e.target.value })} />
           <Input label="Janrlar (vergul bilan)" required value={formData.genres}
             onChange={(e) => setFormData({ ...formData, genres: e.target.value })} />
           {!editingFilm && (

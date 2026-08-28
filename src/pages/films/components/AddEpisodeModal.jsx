@@ -12,6 +12,8 @@ function AddEpisodeModal({ film, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
     code: "",
     episodeNumber: "",
+    // Qaysi faslga tegishli. Film bir faslli bo'lsa 1 bo'lib qolaveradi.
+    season: "1",
     name: "",
     description: "",
     videoChannelId: "",
@@ -30,6 +32,7 @@ function AddEpisodeModal({ film, onClose, onSuccess }) {
       fd.append("filmId", film._id);
       fd.append("code", formData.code);
       fd.append("episodeNumber", formData.episodeNumber);
+      fd.append("season", formData.season || 1);
       fd.append("name", formData.name);
       if (formData.description) fd.append("description", formData.description);
       if (formData.caption) fd.append("caption", formData.caption);
@@ -102,6 +105,19 @@ function AddEpisodeModal({ film, onClose, onSuccess }) {
             value={formData.episodeNumber}
             onChange={update("episodeNumber")}
           />
+          {/* Fasl maydoni faqat ko'p faslli serialda kerak —
+              bir faslli filmda u ortiqcha savol bo'lardi. */}
+          {(Number(film?.seasonsCount) || 1) > 1 && (
+            <Input
+              label={`Fasl (1–${film.seasonsCount})`}
+              type="number"
+              min="1"
+              max={film.seasonsCount}
+              required
+              value={formData.season}
+              onChange={update("season")}
+            />
+          )}
           <Input
             label="Qism kodi"
             type="number"

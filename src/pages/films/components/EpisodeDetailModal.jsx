@@ -12,6 +12,7 @@ function EpisodeDetailModal({ episode, onClose, onUpdate }) {
   const [formData, setFormData] = useState({
     code: episode?.code || "",
     episodeNumber: episode?.episodeNumber || "",
+    season: String(episode?.season || 1),
     name: episode?.name || "",
     description: episode?.description || "",
     releaseYear: episode?.releaseYear || "",
@@ -28,6 +29,7 @@ function EpisodeDetailModal({ episode, onClose, onUpdate }) {
         ...formData,
         code: Number(formData.code),
         episodeNumber: Number(formData.episodeNumber),
+        season: Number(formData.season) || 1,
         releaseYear: formData.releaseYear ? Number(formData.releaseYear) : undefined,
         genres: formData.genres.split(",").map(g => g.trim()).filter(Boolean)
       };
