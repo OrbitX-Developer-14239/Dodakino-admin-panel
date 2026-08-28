@@ -112,10 +112,14 @@ function LogsPage() {
             value={timeFilter}
             onChange={(e) => setTimeFilter(e.target.value)}
           >
-            <option value="">Barcha vaqt</option>
+            <option value="">Barcha vaqt (7 kun)</option>
             <option value="1h">Oxirgi 1 soat</option>
             <option value="6h">Oxirgi 6 soat</option>
             <option value="24h">Oxirgi 24 soat</option>
+            {/* Loglar bazada 7 kun saqlanadi — undan uzoq variant ma'nosiz */}
+            <option value="3d">Oxirgi 3 kun</option>
+            <option value="5d">Oxirgi 5 kun</option>
+            <option value="7d">Oxirgi 7 kun</option>
           </select>
 
           <Button onClick={handleFilter}>Filtrlash</Button>
