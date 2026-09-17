@@ -1,56 +1,17 @@
-.wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
+/**
+ * Bot foydalanuvchilari sahifasi.
+ *
+ * Kartochka, jadval, sahifalash va holat belgilari global
+ * primitivlardan (`panel.css`, `components/ui`) keladi — bu yerda
+ * faqat shu sahifaga xos bitta narsa qolgan.
+ */
 
-.toolbar {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.total_info {
-  font-size: 13px;
-  color: var(--color-text-muted);
-}
-
-.badge_active {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 8px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  background-color: var(--color-accent-soft);
-  color: var(--color-accent-text);
-}
-
-.badge_inactive {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 8px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  background-color: var(--color-danger-soft);
-  color: var(--color-danger);
-}
-
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-border-primary);
-
-  .page_info {
-    font-size: 14px;
-    color: var(--color-text-secondary);
-    min-width: 60px;
-    text-align: center;
-  }
+/* Telegram ID — o'nlab qatorda takrorlanadigan uzun raqam. Monoshrift
+   va tabular raqamlar bilan ular ustun bo'ylab bir tekisda tushadi,
+   shuning uchun bir-biridan farqini ko'z darhol ilg'aydi. */
+.tg_id {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-12);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
 }

@@ -1,28 +1,67 @@
-import React, { useState } from "react";
-import Button from "../../../components/ui/Button";
-import Input from "../../../components/ui/Input";
-import Modal from "../../../components/ui/Modal";
+import React, { useEffect, useState } from "react";
+import { Button, Input, Modal } from "../../../components/ui";
 import EpisodeService from "../../../api/services/episodeService";
 import styles from "../index.module.scss";
 
-function AddEpisodeModal({ film, onClose, onSuccess }) {
+/**
+ * Qism qo'shish.
+ *
+ * Avtomatik to'ldiriladigan maydonlar:
+ *   - Kanal ID  — botning media kanali (qo'lda o'zgartirsa bo'ladi)
+ *   - Qism kodi — 100 dan boshlab eng kichik bo'sh raqam
+ *   - Tavsif, yil, mamlakat, janrlar — FILMNIKIDAN oldindan yoziladi,
+ *                 kerak bo'lsa tahrirlanadi
+ *
+ * "Caption (Instagram uchun)" olib tashlandi: u faqat Instagram videosi
+ * yuklanganda ishlatiladi, bu formada esa video yuklash maydoni yo'q —
+ * maydon hech narsaga ta'sir qilmasdi.
+ */
+function AddEpisodeModal({ film, defaultChannelId = "", defaultCode = "", onClose, onSuccess }) {
+  // Yopish avval shu holatni o'chiradi — Modal silliq yopilgach
+  // onExited orqali ota xabardor qilinadi (EpisodeDetailModal dagi izoh)
+  const [open, setOpen] = useState(true);
+  const close = () => setOpen(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiNotice, setAiNotice] = useState(null);
   const [formData, setFormData] = useState({
-    code: "",
+    // Sahifa oldindan tayyorlagan bo'sh kod — oyna ochilishi bilan yozilgan
+    code: defaultCode,
     episodeNumber: "",
     // Qaysi faslga tegishli. Film bir faslli bo'lsa 1 bo'lib qolaveradi.
     season: "1",
     name: "",
-    description: "",
-    videoChannelId: "",
+    description: film?.description || "",
+    videoChannelId: defaultChannelId,
     videoMsgId: "",
-    caption: "",
     releaseYear: film?.year || "",
     country: film?.country || "",
     genres: (film?.genres || []).join(", ")
   });
+
+  // Fonda qayta tekshiruv: shu orada kod band bo'lgan bo'lsa yangilanadi.
+  // Foydalanuvchi o'zi boshqa kod yozgan bo'lsa tegilmaydi.
+  useEffect(() => {
+    let alive = true;
+    EpisodeService.nextCodes(1)
+      .then((res) => {
+        const code = res?.data?.codes?.[0];
+        if (!alive || !code) return;
+        setFormData((prev) =>
+          !prev.code || prev.code === defaultCode ? { ...prev, code: String(code) } : prev
+        );
+      })
+      .catch(() => { });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Bot kanali modal ochilgandan keyin kelsa ham maydon to'lsin
+  useEffect(() => {
+    if (defaultChannelId) {
+      setFormData((prev) => (prev.videoChannelId ? prev : { ...prev, videoChannelId: defaultChannelId }));
+    }
+  }, [defaultChannelId]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,7 +74,6 @@ function AddEpisodeModal({ film, onClose, onSuccess }) {
       fd.append("season", formData.season || 1);
       fd.append("name", formData.name);
       if (formData.description) fd.append("description", formData.description);
-      if (formData.caption) fd.append("caption", formData.caption);
       if (formData.releaseYear) fd.append("releaseYear", formData.releaseYear);
       if (formData.country) fd.append("country", formData.country);
 
@@ -51,7 +89,7 @@ function AddEpisodeModal({ film, onClose, onSuccess }) {
 
       await EpisodeService.create(fd);
       onSuccess();
-      onClose();
+      close();
     } catch (error) {
       alert("Xatolik: " + (error?.message || "Noma'lum xato"));
     } finally {
@@ -79,7 +117,6 @@ function AddEpisodeModal({ film, onClose, onSuccess }) {
         ...prev,
         code: ep.code ?? prev.code,
         name: ep.name || prev.name,
-        description: ep.description || prev.description,
       }));
 
       setAiNotice(
@@ -95,7 +132,7 @@ function AddEpisodeModal({ film, onClose, onSuccess }) {
   };
 
   return (
-    <Modal isOpen={true} onClose={onClose} title={`"${film?.name}" ga qism qo'shish`}>
+    <Modal isOpen={open} onClose={close} onExited={onClose} title={`"${film?.name}" ga qism qo'shish`}>
       <form onSubmit={handleSubmit} className={styles.ep_edit_form}>
         <div className={styles.grid_2}>
           <Input
@@ -193,14 +230,8 @@ function AddEpisodeModal({ film, onClose, onSuccess }) {
           />
         </div>
 
-        <Input
-          label="Caption (Instagram uchun)"
-          value={formData.caption}
-          onChange={update("caption")}
-        />
-
         <div className={styles.modal_actions}>
-          <Button type="button" variant="ghost" onClick={onClose}>Bekor qilish</Button>
+          <Button type="button" variant="ghost" onClick={close}>Bekor qilish</Button>
           <Button type="submit" variant="primary" loading={isSaving}>
             {isSaving ? "Saqlanmoqda..." : "Qo'shish"}
           </Button>

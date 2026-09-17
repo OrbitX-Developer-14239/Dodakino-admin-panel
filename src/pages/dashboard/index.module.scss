@@ -1,82 +1,68 @@
-.wrapper {
+/**
+ * Boshqaruv paneli.
+ *
+ * Sahifaning umumiy tartibi (kartochkalar orasidagi bo'shliq, grid)
+ * global `panel.css` va layout'dan keladi — bu yerda faqat shu
+ * sahifaga xos reyting ro'yxati qoladi.
+ */
+
+/* ── Reyting ro'yxati ─────────────────────────
+   `<ol>` ataylab: bu tartiblangan ro'yxat, ekran o'quvchi ham shuni
+   aytadi. Raqamlar esa o'z ko'rinishida (doira ichida) chiziladi. */
+.rankList {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--gap-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: rank;
 }
 
-.stats_grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px;
-}
-
-.stat_card {
-  flex-direction: row !important;
-  align-items: center;
-  gap: 20px;
-}
-
-.stat_icon_wrapper {
-  width: 60px;
-  height: 60px;
-  border-radius: 16px;
+.rankRow {
   display: flex;
+  align-items: center;
+  gap: var(--gap-12);
+  padding: var(--padding-10) var(--padding-8);
+  border-radius: var(--border-radius-8);
+  transition: background-color var(--duration-fast) var(--ease-out);
+
+  &:hover {
+    background-color: var(--color-bg-hover);
+  }
+
+  & + & {
+    border-top: 1px solid var(--color-border-secondary);
+  }
+}
+
+.rankNum {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-
-  .icon_placeholder {
-    font-size: 24px;
-    font-weight: bold;
-    color: var(--color-text-primary);
-  }
+  width: 24px;
+  height: 24px;
+  border-radius: var(--border-radius-circle);
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-12);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
-.stat_info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-
-  .stat_label {
-    font-size: 14px;
-    color: var(--color-text-secondary);
-  }
-
-  .stat_value {
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--color-text-primary);
-    line-height: 1.2;
-  }
-
-  .stat_value_text {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--color-text-primary);
-    line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 160px;
-  }
-
-  .stat_subvalue {
-    font-size: 13px;
-    color: var(--color-text-muted);
-  }
+/* Birinchi o'rin brend rangi bilan ajratiladi */
+.rankRow:first-child .rankNum {
+  background-color: var(--color-accent);
+  color: var(--color-text-on-accent);
 }
 
-.content_grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
-
-  .welcome_card {
-    .welcome_text {
-      font-size: 16px;
-      line-height: 1.6;
-      color: var(--color-text-secondary);
-      max-width: 600px;
-    }
-  }
+.rankName {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-13);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

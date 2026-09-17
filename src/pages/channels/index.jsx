@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from "react";
 import styles from "./index.module.scss";
-import Card from "../../components/ui/Card";
-import Table from "../../components/ui/Table";
-import Button from "../../components/ui/Button";
-import Input from "../../components/ui/Input";
-import Modal from "../../components/ui/Modal";
+import { Button, Card, Input, Modal, Table } from "../../components/ui";
 import ChannelsService from "../../api/services/channelService";
 
 /**

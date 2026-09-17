@@ -1,11 +1,20 @@
 import React, { useState } from "react";
-import Button from "../../../components/ui/Button";
-import Input from "../../../components/ui/Input";
-import Modal from "../../../components/ui/Modal";
+import { Button, Input, Modal } from "../../../components/ui";
 import EpisodeService from "../../../api/services/episodeService";
 import styles from "../index.module.scss";
 
+/**
+ * Qism tafsilotlari.
+ *
+ * Oyna ota komponentda shartli render qilinadi (`{selectedEpisode && ...}`).
+ * Agar yopish to'g'ridan-to'g'ri ota onClose ni chaqirsa, oyna DOM dan
+ * darhol olib tashlanib, yopilish animatsiyasi ko'rinmasdi. Shuning uchun
+ * yopish avval shu yerdagi `open` ni o'chiradi, Modal animatsiyani
+ * ko'rsatadi va tugagach onExited orqali ota xabardor qilinadi.
+ */
 function EpisodeDetailModal({ episode, onClose, onUpdate }) {
+  const [open, setOpen] = useState(true);
+  const close = () => setOpen(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -36,6 +45,7 @@ function EpisodeDetailModal({ episode, onClose, onUpdate }) {
       await EpisodeService.update(episode.episodeId, payload);
       onUpdate();
       setIsEditing(false);
+      close();
     } catch (error) {
       alert("Xatolik: " + (error?.message || "Noma'lum xato"));
     } finally {
@@ -54,7 +64,7 @@ function EpisodeDetailModal({ episode, onClose, onUpdate }) {
     try {
       await EpisodeService.delete(episode.episodeId);
       onUpdate();
-      onClose();
+      close();
     } catch (error) {
       alert("O'chirishda xatolik: " + (error?.message || "Noma'lum xato"));
     } finally {
@@ -64,8 +74,9 @@ function EpisodeDetailModal({ episode, onClose, onUpdate }) {
 
   return (
     <Modal
-      isOpen={true}
-      onClose={onClose}
+      isOpen={open}
+      onClose={close}
+      onExited={onClose}
       title={`${episode.episodeNumber}-qism: ${episode.name}`}
     >
       <div className={styles.episode_detail}>
@@ -119,7 +130,7 @@ function EpisodeDetailModal({ episode, onClose, onUpdate }) {
             )}
 
             <div className={styles.modal_actions}>
-              <Button variant="ghost" onClick={onClose}>Yopish</Button>
+              <Button variant="ghost" onClick={close}>Yopish</Button>
               <Button variant="danger" onClick={handleDelete} loading={isDeleting}>
                 {isDeleting ? "O'chirilmoqda..." : "🗑 O'chirish"}
               </Button>

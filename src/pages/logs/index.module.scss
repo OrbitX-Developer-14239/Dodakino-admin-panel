@@ -1,81 +1,44 @@
-.wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
+/**
+ * Tizim jurnali sahifasi.
+ *
+ * Tanlagichlar, tugmalar, jadval, sahifalash va daraja belgilari
+ * global primitivlardan keladi (`panel.css`, `components/ui`). Bu yerda
+ * faqat filtr qatorining o'lchamlari va jadvaldagi ikkita maydonning
+ * xatti-harakati qoladi.
+ */
 
 .filters {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: var(--gap-8);
   flex-wrap: wrap;
 }
 
-.filter_select {
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border-primary);
-  background-color: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  font-size: 14px;
-  font-family: inherit;
-  cursor: pointer;
-  outline: none;
-  min-width: 160px;
-
-  &:focus {
-    border-color: var(--color-accent);
-    box-shadow: 0 0 0 2px var(--color-accent-soft);
-  }
+/* Global `select` kengligi 100% — flex qatorida u qolgan ikkitasini
+   siqib qo'yardi. Bu yerda har bir tanlagich o'z matniga qarab
+   kengayadi, lekin "Barcha darajalar" sig'adigan eng kichik
+   kenglikdan tor bo'lmaydi. */
+.filter {
+  width: auto;
+  min-width: 150px;
+  padding: var(--padding-6-10);
+  font-size: var(--font-size-13);
 }
 
-.total_info {
-  font-size: 13px;
-  color: var(--color-text-muted);
-  margin-left: auto;
+/* Log xabari bir necha yuz belgi bo'lishi mumkin. Kesilmaydi (kesilgan
+   xato xabarining foydasi yo'q), lekin ustunni cheksiz cho'zib qolgan
+   ustunlarni ekrandan chiqarib ham yubormaydi. */
+.message {
+  display: block;
+  max-width: 640px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
-.level_badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  background-color: var(--color-bg-secondary);
-  color: var(--color-text-secondary);
-}
-
-.error {
-  background-color: var(--color-danger-soft);
-  color: var(--color-danger);
-}
-
-.warn {
-  background-color: rgba(245, 158, 11, 0.1);
-  color: #f59e0b;
-}
-
-.info {
-  background-color: var(--color-accent-soft);
-  color: var(--color-accent-text);
-}
-
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-border-primary);
-
-  .page_info {
-    font-size: 14px;
-    color: var(--color-text-secondary);
-    min-width: 60px;
-    text-align: center;
-  }
+/* Vaqt ustuni raqamlari qator-qator bir tekisda tushsin — shunda
+   ketma-ket yozuvlar orasidagi tafovut ko'zga tashlanadi. */
+.stamp {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }

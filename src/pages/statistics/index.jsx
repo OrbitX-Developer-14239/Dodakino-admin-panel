@@ -1,100 +1,45 @@
-import React, { useState, useEffect } from "react";
-import styles from "./index.module.scss";
-import Card from "../../components/ui/Card";
-import Table from "../../components/ui/Table";
-import Button from "../../components/ui/Button";
-import StatisticsService from "../../api/services/statisticsService";
+import { useState } from "react";
+import { TbRefresh } from "react-icons/tb";
+import { PageHead } from "../../components/ui";
+import UsersGrowthCard from "./UsersGrowthCard";
+import FilmViewsCard from "./FilmViewsCard";
+import ChannelJoinsCard from "./ChannelJoinsCard";
 
+/**
+ * Statistika — uchta savolga javob beradigan uchta grafik:
+ *
+ *   1. Auditoriya o'syaptimi?       -> foydalanuvchilar o'sishi
+ *   2. Qaysi film ko'rilyapti?      -> film tanlanadi, ko'rishlari chiziladi
+ *   3. Majburiy kanal to'layaptimi? -> qo'shilgan va chiqib ketganlar
+ *
+ * Ilgari bu yerda "Top 100 eng ko'p ko'rilgan kinolar" jadvali va uning
+ * ustidagi reyting diagrammasi turardi. Ikkalasi ham BITTA holatni —
+ * hozirgi reytingni — ko'rsatardi, "qachon" degan savolga javob bermasdi
+ * va sahifaning yarmini egallardi. Endi filmni tanlab, aynan o'sha
+ * filmning ko'rilish tarixini ko'rish mumkin.
+ *
+ * Sahifa o'zi ma'lumot yuklamaydi: har kartochka o'zinikini o'zi oladi.
+ * "Yangilash" shu raqamni oshiradi, uchalasi ham qayta so'raydi.
+ */
 function StatisticsPage() {
-  const [topItems, setTopItems] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const TOP_COUNT = 100;
-
-  const fetchStats = async (page = 1) => {
-    setIsLoading(true);
-    try {
-      const res = await StatisticsService.getTop(TOP_COUNT, page);
-      // Backend: { success: true, data: [...], pagination: { page, limit, totalPages } }
-      setTopItems(res?.data || []);
-      setCurrentPage(res?.pagination?.page || 1);
-      setTotalPages(res?.pagination?.totalPages || 1);
-    } catch (error) {
-      console.error("Statistika yuklashda xatolik:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchStats(1);
-  }, []);
-
-  const columns = [
-    { 
-      title: "O'rin", 
-      key: "rank", 
-      width: "70px",
-      render: (val) => <span className={styles.rank}>#{val}</span>
-    },
-    { title: "Kino Nomi", key: "name" },
-    { title: "Kod", key: "code", width: "90px" },
-    { 
-      title: "Ko'rishlar soni", 
-      key: "views", 
-      width: "140px",
-      render: (val) => (
-        <span className={styles.views_badge}>{val ?? 0} ta</span>
-      )
-    },
-    { 
-      title: "Epizodlar", 
-      key: "episodes", 
-      width: "110px",
-      render: (val) => `${val?.length || 0} ta`
-    }
-  ];
-
-  // Har bir elementga rank raqami qo'shamiz
-  const dataWithRank = topItems.map((item, index) => ({
-    ...item,
-    rank: (currentPage - 1) * 20 + index + 1
-  }));
+  const [refreshKey, setRefreshKey] = useState(0);
 
   return (
-    <div className={styles.wrapper}>
-      <Card title={`Top ${TOP_COUNT} Eng ko'p ko'rilgan kinolar`}>
-        <Table 
-          columns={columns} 
-          data={dataWithRank} 
-          isLoading={isLoading} 
-        />
+    <>
+      <PageHead>
+        <button
+          type="button"
+          className="btn ghost sm"
+          onClick={() => setRefreshKey((k) => k + 1)}
+        >
+          <TbRefresh size={14} /> Yangilash
+        </button>
+      </PageHead>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className={styles.pagination}>
-            <Button
-              variant="ghost"
-              disabled={currentPage <= 1}
-              onClick={() => fetchStats(currentPage - 1)}
-            >
-              ← Oldingi
-            </Button>
-            <span className={styles.page_info}>
-              {currentPage} / {totalPages}
-            </span>
-            <Button
-              variant="ghost"
-              disabled={currentPage >= totalPages}
-              onClick={() => fetchStats(currentPage + 1)}
-            >
-              Keyingi →
-            </Button>
-          </div>
-        )}
-      </Card>
-    </div>
+      <UsersGrowthCard refreshKey={refreshKey} />
+      <FilmViewsCard refreshKey={refreshKey} />
+      <ChannelJoinsCard refreshKey={refreshKey} />
+    </>
   );
 }
 

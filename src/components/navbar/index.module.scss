@@ -1,7 +1,111 @@
+/**
+ * Navbar — yuqorida "yopishib" turadi, ostidan kontent siljib o'tadi.
+ *
+ * Shishasimon fon (backdrop-filter): ostidan o'tayotgan kontent
+ * xiralashadi, matn esa o'qiladigan bo'lib qoladi. To'liq shaffofmas
+ * fon panelni ikkiga bo'lib ko'rsatardi, umuman shaffofi esa matnni
+ * o'qib bo'lmas holga keltirardi.
+ */
+
 .wrapper {
-    padding: 20px;
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  width: var(--width-100-percent);
+  border-bottom: 1px solid var(--color-border-secondary);
+  background-color: var(--color-glass-bg);
+  backdrop-filter: blur(var(--blur-glass)) saturate(var(--saturate-glass));
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(var(--saturate-glass));
 }
 
-.card{
-    width: 10px;
+/* backdrop-filter qo'llab-quvvatlanmasa — shaffofmas fon, aks holda
+   ostidagi matn navbar matni bilan qo'shilib ketardi. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .wrapper {
+    background-color: var(--color-bg-surface);
+  }
+}
+
+/**
+ * `layout-inner` bilan birga ishlaydi: chap/o'ng bo'shliq VA maksimal
+ * kenglik o'shandan keladi, bu yerda faqat balandlik va ichki tartib.
+ * Shu sababli navbardagi sarlavha bilan sahifa kontenti bitta
+ * vertikal chiziqda turadi.
+ */
+.inner {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-16);
+  min-height: var(--navbar-height);
+  padding-top: var(--padding-8);
+  padding-bottom: var(--padding-8);
+}
+
+.titleBox {
+  min-width: 0; // uzun tavsif navbarni cho'zib yubormasin
+  flex: 1;
+}
+
+.title {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-18);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.desc {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-12);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-8);
+  flex-shrink: 0;
+}
+
+.iconBtn {
+  padding: var(--padding-8);
+}
+
+/* Bot tanlagich — panel.css dagi umumiy `select` uslubidan meros
+   oladi, bu yerda faqat o'lcham cheklovi. Ilgari bu yerda o'z
+   chevron rasmi bor edi va uning rangi qo'lda `%238b93a1` qilib
+   yozilgani uchun mavzu almashganda ham o'zgarmay qolardi. */
+.botSelect {
+  width: auto;
+  max-width: 180px;
+  padding: var(--padding-6-10);
+  font-size: var(--font-size-13);
+}
+
+/* Mavzu belgisi almashganda aylanib chiqadi — `key` o'zgargani uchun
+   React elementni qayta mount qiladi va animatsiya qaytadan ishlaydi */
+.themeIcon {
+  display: inline-flex;
+  animation: theme-icon-in var(--duration-base) var(--ease-spring) both;
+}
+
+@keyframes theme-icon-in {
+  from { opacity: 0; transform: rotate(-90deg) scale(0.6); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ── Mobil ────────────────────────────────────
+   Tavsif qatori olib tashlanadi: tor ekranda u baribir bir necha
+   so'zdan keyin kesilib qolardi, o'rniga esa sarlavhaga joy kerak. */
+@media (max-width: 768px) {
+  .desc {
+    display: none;
+  }
+
+  .botSelect {
+    max-width: 120px;
+  }
 }

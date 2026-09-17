@@ -1,19 +1,28 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { TbRefresh, TbUserCheck, TbUsers } from "react-icons/tb";
 import styles from "./index.module.scss";
-import Card from "../../components/ui/Card";
-import Table from "../../components/ui/Table";
-import Button from "../../components/ui/Button";
+import { Badge, Card, ErrorBox, PageHead, Pagination, Stat, Table } from "../../components/ui";
+import { num, time } from "../../utils/format";
 import UsersService from "../../api/services/usersService";
 
+/**
+ * Bot foydalanuvchilari — ro'yxat va obuna holati.
+ *
+ * Jami son ilgari jadval ustidagi kichik kulrang yozuv edi va ko'zga
+ * tashlanmasdi. Endi u Stat kartochkasi: sahifaning eng muhim raqami
+ * eng katta shrift bilan turadi.
+ */
 function UsersPage() {
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalDocs, setTotalDocs] = useState(0);
 
   const fetchUsers = async (page = 1) => {
     setIsLoading(true);
+    setError(null);
     try {
       const res = await UsersService.getList({ page, limit: 50 });
       // Backend: { success, data: { users, totalDocs, page, limit, totalPages } }
@@ -24,6 +33,7 @@ function UsersPage() {
       setTotalDocs(data?.totalDocs || 0);
     } catch (error) {
       console.error("Foydalanuvchilarni yuklashda xatolik:", error);
+      setError(error);
     } finally {
       setIsLoading(false);
     }
@@ -34,76 +44,84 @@ function UsersPage() {
   }, []);
 
   const columns = [
-    { 
-      title: "Telegram ID", 
-      key: "telegram_id", 
-      width: "150px" 
+    {
+      title: "Telegram ID",
+      key: "telegram_id",
+      width: "150px",
+      render: (val) => <span className={styles.tg_id}>{val}</span>
     },
-    { 
-      title: "Ism", 
+    {
+      title: "Ism",
       key: "first_name",
       render: (val) => val || "—"
     },
-    { 
-      title: "Username", 
-      key: "username", 
-      render: (val) => val ? `@${val}` : "—" 
+    {
+      title: "Username",
+      key: "username",
+      render: (val) => val ? `@${val}` : "—"
     },
-    { 
-      title: "Obuna holati", 
+    {
+      title: "Obuna holati",
       key: "channels_condition",
       width: "130px",
       render: (val) => {
-        if (!val || val.length === 0) return <span className={styles.badge_inactive}>Yo'q</span>;
+        if (!val || val.length === 0) return <Badge tone="danger">Yo'q</Badge>;
         const allSubscribed = val.every(c => c.is_member);
-        return allSubscribed 
-          ? <span className={styles.badge_active}>Obunachi</span>
-          : <span className={styles.badge_inactive}>Obuna emas</span>;
+        return allSubscribed
+          ? <Badge tone="ok">Obunachi</Badge>
+          : <Badge tone="danger">Obuna emas</Badge>;
       }
     },
-    { 
-      title: "Qo'shilgan sana", 
+    {
+      title: "Qo'shilgan sana",
       key: "createdAt",
-      render: (val) => val ? new Date(val).toLocaleDateString("uz-UZ") : "—"
+      render: (val) => time(val)
     }
   ];
 
+  // Shu sahifadagi to'liq obunachilar — jadvalga qarab sanashning
+  // o'rniga bir qarashda ko'rinadigan raqam
+  const subscribed = users.filter(
+    (u) => u.channels_condition?.length && u.channels_condition.every((c) => c.is_member)
+  ).length;
+
   return (
-    <div className={styles.wrapper}>
-      <Card title="Bot Foydalanuvchilari">
-        <div className={styles.toolbar}>
-          <span className={styles.total_info}>Jami: {totalDocs} ta foydalanuvchi</span>
-        </div>
-        <Table 
-          columns={columns} 
-          data={users} 
-          isLoading={isLoading} 
+    <>
+      <PageHead>
+        <button type="button" className="btn ghost sm" onClick={() => fetchUsers(currentPage)}>
+          <TbRefresh size={14} /> Yangilash
+        </button>
+      </PageHead>
+
+      <ErrorBox error={error} onRetry={() => fetchUsers(currentPage)} />
+
+      <div className="grid c2">
+        <Stat
+          icon={TbUsers}
+          label="Jami foydalanuvchilar"
+          value={num(totalDocs)}
+          sub="botdan foydalanganlar"
+        />
+        <Stat
+          icon={TbUserCheck}
+          label="To'liq obunachilar"
+          value={num(subscribed)}
+          sub={`shu sahifadagi ${num(users.length)} tadan`}
+          tone="ok"
+        />
+      </div>
+
+      <Card title="Bot foydalanuvchilari" icon={TbUsers}>
+        <Table
+          columns={columns}
+          data={users}
+          isLoading={isLoading}
+          empty="Foydalanuvchilar topilmadi"
         />
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className={styles.pagination}>
-            <Button
-              variant="ghost"
-              disabled={currentPage <= 1}
-              onClick={() => fetchUsers(currentPage - 1)}
-            >
-              ← Oldingi
-            </Button>
-            <span className={styles.page_info}>
-              {currentPage} / {totalPages}
-            </span>
-            <Button
-              variant="ghost"
-              disabled={currentPage >= totalPages}
-              onClick={() => fetchUsers(currentPage + 1)}
-            >
-              Keyingi →
-            </Button>
-          </div>
-        )}
+        <Pagination page={currentPage} totalPages={totalPages} onChange={fetchUsers} />
       </Card>
-    </div>
+    </>
   );
 }
 

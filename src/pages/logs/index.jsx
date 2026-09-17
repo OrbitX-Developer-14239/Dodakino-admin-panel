@@ -1,13 +1,29 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { TbListDetails } from "react-icons/tb";
 import styles from "./index.module.scss";
-import Card from "../../components/ui/Card";
-import Table from "../../components/ui/Table";
-import Button from "../../components/ui/Button";
+import { Badge, Card, ErrorBox, PageHead, Pagination, Table } from "../../components/ui";
+import { num, time } from "../../utils/format";
 import LogsService from "../../api/services/logsService";
+
+/**
+ * Tizim jurnali.
+ *
+ * Daraja (level) ranglari tasodifiy emas: xato — danger, ogohlantirish
+ * — warn, ma'lumot — info. Shu bir xil ohanglar butun panelda bir xil
+ * ma'noni bildiradi, shuning uchun jadvalni o'qimasdan ham qaysi
+ * qatorga qarash kerakligi ko'rinadi.
+ */
+const LEVEL_TONE = {
+  error: "danger",
+  warn: "warn",
+  warning: "warn",
+  info: "info",
+};
 
 function LogsPage() {
   const [logs, setLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalDocs, setTotalDocs] = useState(0);
@@ -19,6 +35,7 @@ function LogsPage() {
 
   const fetchLogs = async (page = 1) => {
     setIsLoading(true);
+    setError(null);
     try {
       const params = { page, limit: 50 };
       if (levelFilter) params.level = levelFilter;
@@ -33,6 +50,7 @@ function LogsPage() {
       setTotalDocs(res?.meta?.totalDocs || 0);
     } catch (error) {
       console.error("Loglarni yuklashda xatolik:", error);
+      setError(error);
     } finally {
       setIsLoading(false);
     }
@@ -56,40 +74,44 @@ function LogsPage() {
   };
 
   const columns = [
-    { 
-      title: "Vaqt", 
-      key: "timestamp", 
-      width: "180px",
-      render: (val) => val ? new Date(val).toLocaleString("uz-UZ") : "—"
+    {
+      title: "Vaqt",
+      key: "timestamp",
+      width: "150px",
+      render: (val) => <span className={styles.stamp}>{time(val)}</span>
     },
-    { 
-      title: "Daraja", 
-      key: "level", 
+    {
+      title: "Daraja",
+      key: "level",
       width: "100px",
       render: (val) => (
-        <span className={`${styles.level_badge} ${styles[val?.toLowerCase()] || ""}`}>
-          {val}
-        </span>
+        <Badge tone={LEVEL_TONE[String(val || "").toLowerCase()] || ""}>
+          {String(val || "—").toUpperCase()}
+        </Badge>
       )
     },
-    { title: "Xabar", key: "message" },
-    { 
-      title: "Manba", 
-      key: "meta", 
+    {
+      title: "Xabar",
+      key: "message",
+      render: (val) => <span className={styles.message}>{val}</span>
+    },
+    {
+      title: "Manba",
+      key: "meta",
       width: "160px",
       render: (val) => val?.source || "—"
     }
   ];
 
   return (
-    <div className={styles.wrapper}>
-      <Card title="Tizim Jurnali (Logs)">
-        {/* Filter qatori */}
+    <>
+      <PageHead>
         <div className={styles.filters}>
           <select
-            className={styles.filter_select}
+            className={styles.filter}
             value={levelFilter}
             onChange={(e) => setLevelFilter(e.target.value)}
+            aria-label="Daraja"
           >
             <option value="">Barcha darajalar</option>
             <option value="info">Info</option>
@@ -98,9 +120,10 @@ function LogsPage() {
           </select>
 
           <select
-            className={styles.filter_select}
+            className={styles.filter}
             value={sourceFilter}
             onChange={(e) => setSourceFilter(e.target.value)}
+            aria-label="Manba"
           >
             <option value="">Barcha manbalar</option>
             <option value="backend">Backend</option>
@@ -108,9 +131,10 @@ function LogsPage() {
           </select>
 
           <select
-            className={styles.filter_select}
+            className={styles.filter}
             value={timeFilter}
             onChange={(e) => setTimeFilter(e.target.value)}
+            aria-label="Vaqt oralig'i"
           >
             <option value="">Barcha vaqt (7 kun)</option>
             <option value="1h">Oxirgi 1 soat</option>
@@ -122,41 +146,32 @@ function LogsPage() {
             <option value="7d">Oxirgi 7 kun</option>
           </select>
 
-          <Button onClick={handleFilter}>Filtrlash</Button>
-          <Button variant="ghost" onClick={handleClear}>Tozalash</Button>
-          <span className={styles.total_info}>Jami: {totalDocs} ta log</span>
+          <button type="button" className="btn sm" onClick={handleFilter}>
+            Filtrlash
+          </button>
+          <button type="button" className="btn ghost sm" onClick={handleClear}>
+            Tozalash
+          </button>
         </div>
+      </PageHead>
 
-        <Table 
-          columns={columns} 
-          data={logs} 
-          isLoading={isLoading} 
+      <ErrorBox error={error} onRetry={() => fetchLogs(currentPage)} />
+
+      <Card
+        title="Tizim jurnali"
+        subtitle={`Jami ${num(totalDocs)} ta yozuv`}
+        icon={TbListDetails}
+      >
+        <Table
+          columns={columns}
+          data={logs}
+          isLoading={isLoading}
+          empty="Tanlangan shartlarga mos yozuv topilmadi"
         />
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className={styles.pagination}>
-            <Button
-              variant="ghost"
-              disabled={currentPage <= 1}
-              onClick={() => fetchLogs(currentPage - 1)}
-            >
-              ← Oldingi
-            </Button>
-            <span className={styles.page_info}>
-              {currentPage} / {totalPages}
-            </span>
-            <Button
-              variant="ghost"
-              disabled={currentPage >= totalPages}
-              onClick={() => fetchLogs(currentPage + 1)}
-            >
-              Keyingi →
-            </Button>
-          </div>
-        )}
+        <Pagination page={currentPage} totalPages={totalPages} onChange={fetchLogs} />
       </Card>
-    </div>
+    </>
   );
 }
 

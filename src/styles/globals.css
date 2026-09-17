@@ -46,8 +46,8 @@ body::-webkit-scrollbar-track {
 
 body::-webkit-scrollbar-thumb {
   background: var(--color-border-primary);
-  border-radius: 10px;
-  transition: 1s all;
+  border-radius: var(--border-radius-8);
+  transition: background var(--duration-slow) var(--ease-out);
   height: 5px;
 }
 
@@ -57,10 +57,10 @@ body::-webkit-scrollbar-thumb:hover {
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
+  font-family:
+    source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
 }
 
-/* NProgress (Yuklanish chizig'i) */
 #nprogress {
   pointer-events: none;
 }
@@ -68,10 +68,10 @@ code {
 #nprogress .bar {
   background: var(--color-brand);
   position: fixed;
-  z-index: 99999999999999;
+  z-index: var(--z-progress);
   top: 0;
   left: 0;
-  width: 100%;
+  width: var(--width-100-percent);
   height: 4px;
 }
 
@@ -84,4 +84,30 @@ code {
   box-shadow: none;
   opacity: 1;
   transform: rotate(3deg) translate(0, -4px);
+}
+
+/* Sahifa almashish animatsiyasi (Outlet ichidagi kontent).
+   CSS-animatsiya JS state + rAF yechimidan silliqroq: qo'shimcha
+   render sikli yo'q, brauzer compositor'da o'zi bajaradi.
+   Asl ko'rinish: fade + pastdan yuqoriga siljish, lekin MAKSIMAL
+   TEZ (0.15s) — effekt ko'rinadi, kutish sezilmaydi. */
+.page-transition {
+  animation: page-fade-in var(--duration-fast) var(--ease-out) both;
+}
+
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-transition {
+    animation: none;
+  }
 }

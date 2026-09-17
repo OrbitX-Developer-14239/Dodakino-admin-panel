@@ -1,64 +1,56 @@
-.wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
+/**
+ * Instagram profili sahifasi.
+ *
+ * Ko'rsatkichlar endi global `.grid c3` ichidagi Stat kartochkalarida —
+ * bu yerda faqat avatar va profil nomi qoladi.
+ */
 
-.profile_info {
+.profile {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: var(--gap-20);
+}
 
-  .avatar_placeholder {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    background-color: var(--color-accent);
-    color: var(--color-text-on-accent);
-    font-size: 40px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+/* Rasm o'rniga birinchi harf: Instagram'ning avatar havolasi qisqa
+   muddatda eskiradi va sindiq rasm belgisi bo'sh doiradan ham yomon
+   ko'rinadi. Harf esa doim bor va profilni bir qarashda ajratadi. */
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 84px;
+  height: 84px;
+  border-radius: var(--border-radius-circle);
+  background-color: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-size: var(--font-size-32);
+  font-weight: 700;
+  line-height: 1;
+}
 
-  .details {
-    display: flex;
+.identity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-4);
+  min-width: 0;
+}
+
+.handle {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-22);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Telefonda yonma-yon turgan avatar va uzun nom bir-birini siqib
+   qo'yardi — tor ekranda ular ustma-ust joylashadi. */
+@media (max-width: 768px) {
+  .profile {
     flex-direction: column;
-    gap: 8px;
-
-    h3 {
-      margin: 0;
-      font-size: 24px;
-      color: var(--color-text-primary);
-    }
-    
-    p {
-      margin: 0;
-      color: var(--color-text-secondary);
-      font-size: 15px;
-    }
-
-    .stats {
-      display: flex;
-      gap: 24px;
-      margin-top: 12px;
-
-      .stat_box {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-
-        strong {
-          font-size: 18px;
-          color: var(--color-text-primary);
-        }
-
-        span {
-          font-size: 13px;
-          color: var(--color-text-muted);
-        }
-      }
-    }
+    align-items: flex-start;
+    gap: var(--gap-12);
   }
 }

@@ -10,7 +10,7 @@ import { ENDPOINTS } from "../endpoints";
 const EpisodeService = {
   /**
    * Epizod yaratish
-   * @param {FormData} formData - instagramVideo(binary), filmId, code, episodeNumber, name, videoFileId, description, releaseYear, country, caption, genres, editVideos
+   * @param {FormData} formData - filmId, code, episodeNumber, name, videoFileId, releaseYear, country, genres (tavsif yuborilmasa backend filmnikini oladi)
    * @returns {Promise<any>}
    * @swagger POST /api/episode
    */
@@ -36,6 +36,16 @@ const EpisodeService = {
    * @returns {Promise<any>} { data: { episode: {...code}, codes: [] } }
    * @swagger POST /api/episode/ai-suggest
    */
+  /**
+   * Keyingi bo'sh qism kodlari (100 dan boshlab eng kichiklari). AI'siz, tez.
+   * @param {number} count
+   * @returns {Promise<any>} { data: { codes: [] } }
+   * @swagger GET /api/episode/next-code
+   */
+  async nextCodes(count = 1) {
+    return client.get(ENDPOINTS.EPISODES.NEXT_CODE, { params: { count } });
+  },
+
   async aiSuggest({ filmId, filmName, episodeNumber = 1, count = 1 }) {
     return client.post(ENDPOINTS.EPISODES.AI_SUGGEST, {
       ...(filmId ? { filmId } : {}),

@@ -1,26 +1,122 @@
-import React from "react";
-import Button from "../../../components/ui/Button";
+import React, { useCallback, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { Button } from "../../../components/ui";
+import { lockScroll } from "../../../utils/scrollLock";
+import { usePresence } from "../../../hooks/usePresence";
 import styles from "../index.module.scss";
 
-function FilmDetailPanel({ film, onClose, onEdit, onDelete, onEpisodeClick, onAddEpisode }) {
-  if (!film) return null;
+/**
+ * Filmning yon paneli.
+ *
+ * PORTAL VA SCROLL QULFI — ikkalasi ham shart:
+ *
+ *   1) Sahifa `.page-transition` ichida chiziladi va uning animatsiyasi
+ *      oxirida `transform` qoladi. Transformli ota element ichidagi
+ *      `position: fixed` ekranga emas, SHU BLOKKA bog'lanadi. Natijada
+ *      overlay ekranni emas, butun sahifa balandligini qoplardi va
+ *      sahifa bilan birga surilib, panel tepaga ketib qolardi.
+ *      <body> ga portal qilinganda bu muammo butunlay yo'qoladi —
+ *      umumiy Modal komponenti ham aynan shunday ishlaydi.
+ *
+ *   2) Panel ochiqligida orqadagi sahifa surilmasligi kerak — aks holda
+ *      panel ichini aylantirmoqchi bo'lgan foydalanuvchi ro'yxatni
+ *      aylantirib yuborardi.
+ *
+ * SILLIQ YOPILISH: panel yopilganda o'ngga qaytib ketadi. Buning uchun
+ * animatsiya tugaguncha oxirgi film eslab qolinadi (ota komponent uni
+ * allaqachon null qilgan bo'lishi mumkin) va X/fon/Escape bosilganda
+ * onClose animatsiyadan KEYIN chaqiriladi.
+ */
+const PANEL_EXIT_MS = 200;
+
+/**
+ * Yuklanish holati.
+ *
+ * Ro'yxatdagi qatorda qismlar, mamlakat va tavsif yo'q — ular alohida
+ * so'rov bilan keladi. Ilgari shu vaqt ichida panel "Qismlar (0)",
+ * "Hali qismlar qo'shilmagan" va "Mamlakat: —" ni ko'rsatardi, ya'ni
+ * yolg'on ma'lumot. Endi ro'yxatdagi kabi yaltiraydigan joy egallovchilar.
+ */
+function PanelSkeleton() {
+  return (
+    <div className={styles.panel_skeleton} aria-busy="true" aria-label="Yuklanmoqda">
+      <div className={styles.film_meta_grid}>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className={`skeleton ${styles.sk_meta}`} style={{ "--i": i }} />
+        ))}
+      </div>
+      <div className={styles.sk_row}>
+        {[70, 90, 60].map((w, i) => (
+          <div key={i} className={`skeleton ${styles.sk_tag}`} style={{ width: w, "--i": i }} />
+        ))}
+      </div>
+      <div className={`skeleton ${styles.sk_block}`} />
+      <div className={styles.sk_row}>
+        <div className={`skeleton ${styles.sk_button}`} />
+        <div className={`skeleton ${styles.sk_button}`} />
+      </div>
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className={`skeleton ${styles.sk_episode}`} style={{ "--i": i }} />
+      ))}
+    </div>
+  );
+}
+
+function FilmDetailPanel({ film: filmProp, loading = false, onClose, onEdit, onDelete, onEpisodeClick, onAddEpisode }) {
+  const shown = Boolean(filmProp);
+
+  const lastFilm = useRef(filmProp);
+  if (filmProp) lastFilm.current = filmProp;
+  const film = filmProp || lastFilm.current;
+
+  const closingByUser = useRef(false);
+  const { mounted, leaving, leave } = usePresence(shown, {
+    exitMs: PANEL_EXIT_MS,
+    onExited: () => {
+      if (closingByUser.current) {
+        closingByUser.current = false;
+        onClose?.();
+      }
+    },
+  });
+
+  const requestClose = useCallback(() => {
+    if (leaving) return;
+    closingByUser.current = true;
+    leave();
+  }, [leaving, leave]);
+
+  useEffect(() => {
+    if (!mounted) return undefined;
+    return lockScroll();
+  }, [mounted]);
+
+  useEffect(() => {
+    if (!mounted || leaving) return undefined;
+    const onKey = (e) => e.key === "Escape" && requestClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mounted, leaving, requestClose]);
+
+  if (!mounted || !film) return null;
 
   const sortedEpisodes = [...(film.episodes || [])].sort(
     (a, b) => a.episodeNumber - b.episodeNumber
   );
 
-  return (
-    <div className={styles.panel_overlay} onClick={onClose}>
+  return createPortal(
+    <div className={styles.panel_overlay} onClick={requestClose} data-leaving={leaving || undefined}>
       <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
         <div className={styles.panel_header}>
           <div>
             <h2 className={styles.panel_title}>{film.name}</h2>
             <p className={styles.panel_subtitle}>{film.originalName}</p>
           </div>
-          <button className={styles.panel_close} onClick={onClose}>✕</button>
+          <button className={styles.panel_close} onClick={requestClose}>✕</button>
         </div>
 
         <div className={styles.panel_body}>
+          {loading ? <PanelSkeleton /> : (<>
           {/* Film meta */}
           <div className={styles.film_meta_grid}>
             <div className={styles.meta_item}>
@@ -104,9 +200,11 @@ function FilmDetailPanel({ film, onClose, onEdit, onDelete, onEpisodeClick, onAd
               </div>
             )}
           </div>
+          </>)}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

@@ -51,7 +51,19 @@ const RouteWrapper = ({ title, description, element }) => {
   return (
     <>
       <SEO title={title} description={description} />
-      {element}
+      {/*
+        .page-transition — sahifa almashganda fade + tepaga siljish
+        (globals.css). Bu div AYNI PAYTDA sahifa bloklari orasidagi
+        bo'shliqni ham beradi (panel.css): u `.inner` ning yagona
+        bolasi bo'lgani uchun, gap aynan shu yerda bo'lishi kerak —
+        `.inner` ga berilgani hech narsaga ta'sir qilmasdi.
+
+        key={pathname} — route almashganda div qayta mount bo'ladi va
+        CSS animatsiya qaytadan ishlaydi.
+      */}
+      <div className="page-transition" key={pathname}>
+        {element}
+      </div>
     </>
   );
 };

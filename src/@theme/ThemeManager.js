@@ -73,11 +73,23 @@ class ThemeManager {
       if (this._pendingTransition) {
         this._pendingTransition.skipTransition?.();
       }
-      this._pendingTransition = document.startViewTransition(() => applyClasses());
-      this._pendingTransition.finished
+      const transition = document.startViewTransition(() => applyClasses());
+      this._pendingTransition = transition;
+
+      // O'tkazib yuborilgan (skipTransition) animatsiyaning `ready` va
+      // `updateCallbackDone` promise'lari AbortError bilan RAD ETILADI.
+      // Ilgari faqat `finished` ushlanardi — qolgan ikkitasi konsolga
+      // "Uncaught (in promise) AbortError: Transition was skipped" bo'lib
+      // chiqardi. Bu xato emas, kutilgan holat: mavzu ketma-ket ikki marta
+      // qo'llansa birinchi animatsiya bekor qilinadi.
+      transition.ready?.catch(() => {});
+      transition.updateCallbackDone?.catch(() => {});
+      transition.finished
         .catch(() => {})
         .finally(() => {
-          this._pendingTransition = null;
+          // Faqat O'ZI hali joriy bo'lsa tozalaydi — aks holda keyingi
+          // animatsiyaning havolasini o'chirib yuborardi
+          if (this._pendingTransition === transition) this._pendingTransition = null;
         });
     } else {
       applyClasses();

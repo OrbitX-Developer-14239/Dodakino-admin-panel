@@ -1,33 +1,43 @@
-import React, { useState, useEffect } from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Outlet, useNavigate } from "react-router-dom";
 import styles from "./AdminLayout.module.scss";
+import Sidebar from "../../components/sidebar/index";
+import Navbar from "../../components/navbar/index";
+import Tabbar from "../../components/tabbar/index";
+import Footer from "../../components/footer/index";
 import { TokenManager } from "../../api/tokenManager";
-import AdminService from "../../api/services/authService";
 import BotService from "../../api/services/botService";
-import { getSelectedBotId, setSelectedBotId } from "../../api/botContext";
 import { initSocket, disconnectSocket } from "../../api/socket";
 
+/**
+ * Panel karkasi.
+ *
+ * TARTIB: sidebar chapda "yopishib" turadi (sticky), o'ngdagi ustun
+ * qolgan kenglikni to'liq egallaydi. 1024px dan tor ekranda sidebar
+ * yo'qoladi va o'rnini pastdagi Tabbar egallaydi.
+ *
+ * ILGARI QANDAY EDI: bitta 173 qatorlik komponent — menyu ro'yxati
+ * qo'lda yozilgan, ikonkalar o'rniga kulrang kvadratlar, sarlavha
+ * doim "Boshqaruv paneli", mavzu esa ThemeManager'ni chetlab o'tib
+ * to'g'ridan-to'g'ri classList bilan boshqarilardi. Endi menyu
+ * routes.js dan, sarlavha ham shundan, mavzu esa ThemeManager'dan.
+ */
 const AdminLayout = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(
-    localStorage.getItem("theme") === "dark"
-  );
-  // Multibot: sozlangan botlar ro'yxati va tanlangani.
-  // Kontent so'rovlari (filmlar, kanallar, ...) tanlangan botning
-  // bazasiga boradi — prefiksni client.js avtomatik qo'shadi.
+  // Multibot: botlar ro'yxati bir marta olinadi va navbar (tanlagich)
+  // hamda footer (holat) o'rtasida bo'lishiladi — ikki marta
+  // so'ralmasin.
   const [bots, setBots] = useState([]);
-  const selectedBotId = getSelectedBotId();
   const navigate = useNavigate();
 
   useEffect(() => {
+    let alive = true;
     BotService.list()
-      .then((res) => setBots(res?.data || []))
-      .catch(() => setBots([]));
+      .then((res) => alive && setBots(res?.data || []))
+      .catch(() => alive && setBots([]));
+    return () => {
+      alive = false;
+    };
   }, []);
-
-  const handleBotChange = (e) => {
-    setSelectedBotId(e.target.value); // sahifani qayta yuklaydi
-  };
 
   useEffect(() => {
     initSocket();
@@ -46,126 +56,31 @@ const AdminLayout = () => {
     };
   }, [navigate]);
 
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add("dark");
-      document.documentElement.classList.remove("light");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      document.documentElement.classList.add("light");
-      localStorage.setItem("theme", "light");
-    }
-  }, [isDarkMode]);
-
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
-
-  const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-  };
-
-  const handleLogout = async () => {
-    try {
-      await AdminService.logout();
-    } catch (e) {
-      // Ignore
-    } finally {
-      TokenManager.clearTokens();
-      navigate("/auth", { replace: true });
-    }
-  };
-
-  const menuItems = [
-    { path: "/dashboard", label: "Dashboard", icon: "dashboard" },
-    { path: "/statistics", label: "Statistika", icon: "chart" },
-    { path: "/films", label: "Filmlar", icon: "film" },
-    { path: "/channels", label: "Kanallar", icon: "link" },
-    { path: "/users", label: "Foydalanuvchilar", icon: "users" },
-    { path: "/logs", label: "Tizim Jurnali", icon: "document" },
-    { path: "/instagram", label: "Instagram", icon: "instagram" },
-  ];
-
   return (
-    <div className={styles.layout}>
-      {/* Overlay for mobile */}
-      {isSidebarOpen && (
-        <div className={styles.overlay} onClick={toggleSidebar}></div>
-      )}
+    <div className={styles.wrapper}>
+      {/* CHAP: SIDEBAR — mobilda yashiriladi, o'rniga pastdagi Tabbar */}
+      <Sidebar />
 
-      {/* Sidebar */}
-      <aside className={`${styles.sidebar} ${isSidebarOpen ? styles.open : ""}`}>
-        <div className={styles.sidebar_header}>
-          <div className={styles.logo}>
-            <span className={styles.brand}>Doda Kino</span>
-            <span className={styles.badge}>Admin</span>
-          </div>
-          <button className={styles.close_btn} onClick={toggleSidebar}>
-            &times;
-          </button>
-        </div>
+      {/* O'NG: ASOSIY USTUN */}
+      <div className={styles.container}>
+        <Navbar bots={bots} />
 
-        <nav className={styles.nav}>
-          {menuItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) =>
-                `${styles.nav_item} ${isActive ? styles.active : ""}`
-              }
-              onClick={() => setIsSidebarOpen(false)}
-            >
-              {/* Note: In a real app we would use actual SVG icons based on the icon property */}
-              <span className={styles.icon_placeholder}></span>
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
-
-        <div className={styles.sidebar_footer}>
-          <button className={styles.logout_btn} onClick={handleLogout}>
-            Chiqish
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <div className={styles.main_wrapper}>
-        <header className={styles.header}>
-          <div className={styles.header_left}>
-            <button className={styles.burger_btn} onClick={toggleSidebar}>
-              &#9776;
-            </button>
-            <h2 className={styles.page_title}>Boshqaruv paneli</h2>
-          </div>
-          <div className={styles.header_right}>
-            {bots.length > 1 && (
-              <select
-                className={styles.bot_select}
-                value={selectedBotId || String(bots[0]?.botId || "")}
-                onChange={handleBotChange}
-                title="Qaysi botning ma'lumotlari ko'rsatilsin"
-              >
-                {bots.map((b) => (
-                  <option key={b.botId} value={b.botId} disabled={!b.active}>
-                    {"🤖 "}
-                    {b.username ? `@${b.username}` : b.botId}
-                    {b.active ? "" : " (ulanmagan)"}
-                  </option>
-                ))}
-              </select>
-            )}
-            <button className={styles.theme_btn} onClick={toggleTheme}>
-              {isDarkMode ? "☀️ Yoritish" : "🌙 Qorong'ulashtirish"}
-            </button>
-          </div>
-        </header>
-
+        {/*
+          Sahifa kontenti. `layout-inner` — navbar bilan BITTA vertikal
+          o'q (panel.css dagi izohga qarang), shuning uchun bu yerda
+          alohida padding YOZILMAYDI.
+        */}
         <main className={styles.content}>
-          <Outlet />
+          <div className={`layout-inner ${styles.inner}`}>
+            <Outlet />
+          </div>
         </main>
+
+        <Footer bots={bots} />
       </div>
+
+      {/* Mobil pastki menyu — faqat tor ekranda ko'rinadi */}
+      <Tabbar />
     </div>
   );
 };

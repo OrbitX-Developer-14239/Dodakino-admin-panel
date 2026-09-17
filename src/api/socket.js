@@ -1,7 +1,16 @@
 import { io } from "socket.io-client";
 import { TokenManager } from "./tokenManager";
 
-const SOCKET_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+/**
+ * Socket manzili — API manzilidan olinadi ("/api" qismisiz).
+ *
+ * Ilgari REACT_APP_API_URL o'qilardi, lekin .env da bunday o'zgaruvchi
+ * yo'q (bor-yo'g'i REACT_APP_API_BASE_URL). Natijada socket har doim
+ * "localhost:5000" ga ulanmoqchi bo'lib, konsolni xato bilan to'ldirardi —
+ * panel production API bilan ishlayotgan bo'lsa ham. Login sahifasi
+ * socketni aynan shu usulda ulaydi.
+ */
+const SOCKET_URL = (process.env.REACT_APP_API_BASE_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "");
 
 let socket;
 

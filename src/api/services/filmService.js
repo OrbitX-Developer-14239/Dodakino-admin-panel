@@ -66,6 +66,15 @@ const FilmService = {
    * @returns {Promise<any>} { data: { film: {...code}, episodeCodes: [] } }
    * @swagger POST /api/film/ai-suggest
    */
+  /**
+   * Keyingi bo'sh film kodi (50000 dan boshlab eng kichigi). AI'siz, tez.
+   * @returns {Promise<any>} { data: { code } }
+   * @swagger GET /api/film/next-code
+   */
+  async nextCode() {
+    return client.get(ENDPOINTS.FILMS.NEXT_CODE);
+  },
+
   async aiSuggest({ name, year, country, episodeCount = 1 }) {
     return client.post(ENDPOINTS.FILMS.AI_SUGGEST, {
       name,

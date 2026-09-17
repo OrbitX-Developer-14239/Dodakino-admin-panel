@@ -1,19 +1,32 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { TbBrandInstagram, TbPhoto, TbRefresh, TbUserPlus, TbUsers } from "react-icons/tb";
 import styles from "./index.module.scss";
-import Card from "../../components/ui/Card";
+import { Card, Empty, ErrorBox, Loading, PageHead, Stat } from "../../components/ui";
+import { num } from "../../utils/format";
 import InstagramService from "../../api/services/instagramService";
 
+/**
+ * Instagram profili.
+ *
+ * Uchta raqam ilgari avatar yonidagi mayda ustunchalar edi va profil
+ * nomi bilan bir xil og'irlikda ko'rinardi. Endi ular Stat
+ * kartochkalarida — panelning boshqa sahifalaridagi ko'rsatkichlar
+ * bilan bir xil o'lchov va joylashuvda.
+ */
 function InstagramPage() {
   const [profile, setProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const fetchProfile = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const res = await InstagramService.getProfile();
       setProfile(res?.data || null);
     } catch (error) {
       console.error("Instagram ma'lumotlarini yuklashda xatolik:", error);
+      setError(error);
     } finally {
       setIsLoading(false);
     }
@@ -24,40 +37,48 @@ function InstagramPage() {
   }, []);
 
   return (
-    <div className={styles.wrapper}>
-      <Card title="Instagram Profil">
+    <>
+      <PageHead>
+        <button type="button" className="btn ghost sm" onClick={fetchProfile} disabled={isLoading}>
+          <TbRefresh size={14} /> Yangilash
+        </button>
+      </PageHead>
+
+      <ErrorBox error={error} onRetry={fetchProfile} />
+
+      <Card title="Instagram profil" icon={TbBrandInstagram}>
         {isLoading ? (
-          <p>Yuklanmoqda...</p>
+          <Loading rows={2} />
         ) : profile ? (
-          <div className={styles.profile_info}>
-            <div className={styles.avatar_placeholder}>
+          <div className={styles.profile}>
+            <div className={styles.avatar} aria-hidden="true">
               {profile.username?.charAt(0)?.toUpperCase()}
             </div>
-            <div className={styles.details}>
-              <h3>@{profile.username}</h3>
-              <p>{profile.fullName}</p>
-              
-              <div className={styles.stats}>
-                <div className={styles.stat_box}>
-                  <strong>{profile.followersCount}</strong>
-                  <span>Obunachilar</span>
-                </div>
-                <div className={styles.stat_box}>
-                  <strong>{profile.followingCount}</strong>
-                  <span>Kuzatuvchilar</span>
-                </div>
-                <div className={styles.stat_box}>
-                  <strong>{profile.postsCount}</strong>
-                  <span>Postlar</span>
-                </div>
-              </div>
+            <div className={styles.identity}>
+              <p className={styles.handle}>@{profile.username}</p>
+              <p className="hint">{profile.fullName}</p>
             </div>
           </div>
         ) : (
-          <p>Instagram ma'lumotlari topilmadi. (API ulanishini tekshiring)</p>
+          <Empty icon={TbBrandInstagram}>
+            Instagram ma'lumotlari topilmadi — API ulanishini tekshiring
+          </Empty>
         )}
       </Card>
-    </div>
+
+      {!isLoading && profile && (
+        <div className="grid c3">
+          <Stat icon={TbUsers} label="Obunachilar" value={num(profile.followersCount)} />
+          <Stat
+            icon={TbUserPlus}
+            label="Kuzatuvchilar"
+            value={num(profile.followingCount)}
+            tone="info"
+          />
+          <Stat icon={TbPhoto} label="Postlar" value={num(profile.postsCount)} tone="ok" />
+        </div>
+      )}
+    </>
   );
 }
 

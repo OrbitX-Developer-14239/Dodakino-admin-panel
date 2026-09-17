@@ -1,38 +1,23 @@
-.wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
+/**
+ * Statistika sahifasi.
+ *
+ * Jadval, kartochka, sahifalash va belgilar global primitivlardan
+ * keladi — bu yerda faqat reyting raqami qoladi.
+ */
 
-.rank {
-  font-weight: 700;
-  color: var(--color-text-secondary);
-}
-
-.views_badge {
+/* Reyting o'rni doira ichida. Ilgari "#1" shaklidagi qalin matn edi:
+   panjara ustunida u qo'shni ustundagi kod bilan chalkashib ketardi.
+   Doira esa raqamni matn emas, belgi qilib ko'rsatadi. */
+.rank_num {
   display: inline-flex;
   align-items: center;
-  padding: 3px 10px;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 600;
-  background-color: var(--color-accent-soft);
-  color: var(--color-accent-text);
-}
-
-.pagination {
-  display: flex;
-  align-items: center;
   justify-content: center;
-  gap: 16px;
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-border-primary);
-
-  .page_info {
-    font-size: 14px;
-    color: var(--color-text-secondary);
-    min-width: 60px;
-    text-align: center;
-  }
+  width: 24px;
+  height: 24px;
+  border-radius: var(--border-radius-circle);
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-12);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }

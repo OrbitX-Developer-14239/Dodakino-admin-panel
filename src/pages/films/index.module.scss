@@ -15,9 +15,19 @@
 
   .search_bar {
     display: flex;
+    // stretch: tugma aynan maydon balandligida bo'ladi
+    align-items: stretch;
     gap: 10px;
     flex: 1;
     max-width: 500px;
+
+    // Input komponenti `.field` ichida keladi va unda formalar uchun
+    // pastki margin (16px) bor. Qatorda u balandlikka qo'shilib, yonidagi
+    // tugmani 16px ga cho'zib yuborardi.
+    > :global(.field) {
+      flex: 1;
+      margin-bottom: 0;
+    }
   }
 
   .toolbar_right {
@@ -50,22 +60,8 @@
 }
 
 // ─── Pagination ──────────────────────────────
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-border-primary);
-
-  .page_info {
-    font-size: 14px;
-    color: var(--color-text-secondary);
-    min-width: 60px;
-    text-align: center;
-  }
-}
+/* Sahifalash endi umumiy komponentda (components/ui) — bu yerda
+   takrorlanmaydi: ilgari u to'rtta sahifada nusxalangan edi. */
 
 // ─── Film Edit Form ───────────────────────────
 .form {
@@ -235,9 +231,9 @@
   right: 8px;
   z-index: 2;
   border: none;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  font-size: 14px;
+  background: var(--color-overlay);
+  color: #fff; /* rasm ustida — mavzudan qat'i nazar oq */
+  font-size: var(--font-size-14);
   line-height: 1;
   cursor: pointer;
   padding: 5px 8px;
@@ -245,7 +241,7 @@
   backdrop-filter: blur(4px);
   transition: background 0.15s;
 
-  &:hover { background: rgba(220, 38, 38, 0.8); }
+  &:hover { background: var(--color-danger); color: var(--color-on-danger); }
 }
 
 .textarea_wrapper {
@@ -290,9 +286,9 @@
 .panel_overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--color-overlay);
   backdrop-filter: blur(2px);
-  z-index: 200;
+  z-index: var(--z-modal);
   display: flex;
   justify-content: flex-end;
   animation: fadeIn 0.2s ease;
@@ -310,14 +306,44 @@
   background: var(--color-bg-surface);
   display: flex;
   flex-direction: column;
-  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.25);
-  animation: slideIn 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  box-shadow: var(--shadow-lg);
+  animation: slideIn 0.28s var(--ease-out) both;
   overflow: hidden;
 }
 
 @keyframes slideIn {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
+}
+
+@keyframes slideOut {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* Yopilish — panel o'ngga qaytadi, fon so'nadi. Davomiylik
+   FilmDetailPanel dagi PANEL_EXIT_MS (200 ms) bilan bir xil. */
+.panel_overlay[data-leaving] {
+  pointer-events: none;
+  animation: fadeOut 200ms var(--ease-in) both;
+
+  .panel {
+    animation: slideOut 200ms var(--ease-in) both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel_overlay,
+  .panel,
+  .panel_overlay[data-leaving],
+  .panel_overlay[data-leaving] .panel {
+    animation: none;
+  }
 }
 
 .panel_header {
@@ -361,6 +387,44 @@
     background: var(--color-bg-primary);
     color: var(--color-text-primary);
   }
+}
+
+/* ── Panel yuklanish skeletoni ─────────────── */
+.panel_skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sk_meta {
+  height: 68px;
+  border-radius: var(--border-radius-12);
+}
+
+.sk_row {
+  display: flex;
+  gap: 10px;
+}
+
+.sk_tag {
+  height: 26px;
+  border-radius: var(--border-radius-pill);
+}
+
+.sk_block {
+  height: 110px;
+  border-radius: var(--border-radius-12);
+}
+
+.sk_button {
+  width: 132px;
+  height: 42px;
+  border-radius: var(--border-radius-8);
+}
+
+.sk_episode {
+  height: 64px;
+  border-radius: var(--border-radius-12);
 }
 
 .panel_body {
@@ -430,7 +494,7 @@
   font-weight: 500;
   background: var(--color-accent-soft);
   color: var(--color-accent-text);
-  border: 1px solid rgba(var(--color-accent-rgb, 99, 102, 241), 0.2);
+  border: 1px solid var(--color-accent-soft);
 }
 
 // ─── Description ─────────────────────────────
@@ -610,9 +674,8 @@
   color: var(--color-text-secondary);
 }
 
-/* Dizayn tizimida "warning" tokeni yo'q — shu modul uchun lokal rang */
 .ai_warn {
-  color: #b45309;
+  color: var(--color-warn);
 }
 
 .ai_error {

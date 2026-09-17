@@ -1,300 +1,62 @@
-.layout {
+/**
+ * Panel karkasi.
+ *
+ * TARTIB: sidebar chapda "yopishib" turadi (sticky), o'ngdagi ustun
+ * esa qolgan kenglikni to'liq egallaydi. `min-width: 0` — flex
+ * bolasining majburiy sozlamasi: usiz ichkaridagi keng jadval yoki
+ * uzun kod qatori butun sahifani cho'zib yuboradi va gorizontal
+ * scrollbar chiqadi.
+ *
+ * ILGARI: `height: 100vh` + `overflow: hidden` bo'lib, faqat `.content`
+ * ichi surilardi. Bunda sahifa uzun bo'lsa navbar ham, footer ham
+ * qotib qolardi va mobil brauzerlarda manzil qatori yashiringanda
+ * balandlik noto'g'ri hisoblanardi. Endi butun sahifa tabiiy suriladi,
+ * navbar esa `sticky` bo'lgani uchun baribir ko'z oldida qoladi.
+ */
+
+.wrapper {
   display: flex;
-  width: var(--width-screen, 100vw);
-  height: var(--height-screen, 100vh);
+  width: var(--width-screen);
+  min-height: var(--height-screen);
   background-color: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  overflow: hidden;
-  font-family: inherit;
+  position: relative;
 }
 
-.overlay {
-  position: fixed;
-  inset: 0;
-  background-color: var(--color-overlay);
-  z-index: 40;
-  display: none;
-}
-
-.sidebar {
-  width: 260px;
-  height: 100%;
-  background-color: var(--color-bg-secondary);
-  border-right: 1px solid var(--color-border-secondary);
-  display: flex;
-  flex-direction: column;
-  transition: transform 0.3s ease;
-  z-index: 50;
-
-  .sidebar_header {
-    height: 70px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 20px;
-    border-bottom: 1px solid var(--color-border-secondary);
-
-    .logo {
-      display: flex;
-      flex-direction: column;
-
-      .brand {
-        font-weight: 800;
-        font-size: 20px;
-        color: var(--color-text-primary);
-        letter-spacing: 1px;
-      }
-
-      .badge {
-        font-size: 10px;
-        text-transform: uppercase;
-        color: var(--color-accent-text);
-        background: var(--color-accent-soft);
-        padding: 2px 6px;
-        border-radius: 4px;
-        width: max-content;
-        margin-top: 2px;
-      }
-    }
-
-    .close_btn {
-      display: none;
-      background: none;
-      border: none;
-      color: var(--color-text-secondary);
-      font-size: 24px;
-      cursor: pointer;
-    }
-  }
-
-  .nav {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-
-    .nav_item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 16px;
-      border-radius: 8px;
-      color: var(--color-text-secondary);
-      text-decoration: none;
-      font-weight: 500;
-      transition: all 0.2s ease;
-
-      .icon_placeholder {
-        width: 20px;
-        height: 20px;
-        border-radius: 4px;
-        background-color: var(--color-text-muted);
-        opacity: 0.3;
-      }
-
-      &:hover {
-        background-color: var(--color-bg-surface);
-        color: var(--color-text-primary);
-        
-        .icon_placeholder {
-          opacity: 0.8;
-          background-color: var(--color-accent);
-        }
-      }
-
-      &.active {
-        background-color: var(--color-accent-soft);
-        color: var(--color-accent-text);
-
-        .icon_placeholder {
-          background-color: var(--color-accent);
-          opacity: 1;
-        }
-      }
-    }
-  }
-
-  .sidebar_footer {
-    padding: 20px;
-    border-top: 1px solid var(--color-border-secondary);
-
-    .logout_btn {
-      width: 100%;
-      padding: 12px;
-      background-color: var(--color-danger-soft);
-      color: var(--color-danger);
-      border: 1px solid transparent;
-      border-radius: 8px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-
-      &:hover {
-        background-color: var(--color-danger);
-        color: #fff;
-      }
-    }
-  }
-}
-
-.main_wrapper {
+.container {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-
-  .header {
-    height: 70px;
-    background-color: var(--color-bg-surface);
-    border-bottom: 1px solid var(--color-border-secondary);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 24px;
-
-    .header_left {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-
-      .burger_btn {
-        display: none;
-        background: none;
-        border: none;
-        color: var(--color-text-primary);
-        font-size: 24px;
-        cursor: pointer;
-      }
-
-      .page_title {
-        font-size: 20px;
-        font-weight: 600;
-        margin: 0;
-      }
-    }
-
-    .header_right {
-      // Bot tanlagich — theme_btn bilan bir xil dizayn tili:
-      // panelning o'z rang tokenlari, ikkala (yorug'/qorong'u) rejimda ishlaydi
-      .bot_select {
-        margin-right: 12px;
-        padding: 8px 34px 8px 14px;
-        border-radius: 8px;
-        border: 1px solid var(--color-border-primary);
-        background-color: var(--color-bg-secondary);
-        color: var(--color-text-primary);
-        font-size: 14px;
-        font-weight: 500;
-        line-height: 1.4;
-        cursor: pointer;
-        max-width: 220px;
-        transition: all 0.2s ease;
-
-        // Standart strelka o'rniga o'zimizniki — har brauzerda bir xil
-        appearance: none;
-        -webkit-appearance: none;
-        background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%238b93a1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 12px center;
-
-        &:hover {
-          border-color: var(--color-accent);
-        }
-
-        &:focus {
-          outline: none;
-          border-color: var(--color-accent);
-          box-shadow: 0 0 0 3px var(--color-accent-soft);
-        }
-
-        option {
-          background-color: var(--color-bg-secondary);
-          color: var(--color-text-primary);
-
-          &:disabled {
-            color: var(--color-text-muted);
-          }
-        }
-      }
-
-      display: flex;
-      align-items: center;
-
-      .theme_btn {
-        background-color: var(--color-bg-secondary);
-        color: var(--color-text-primary);
-        border: 1px solid var(--color-border-primary);
-        padding: 8px 16px;
-        border-radius: 8px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s ease;
-
-        &:hover {
-          border-color: var(--color-accent);
-        }
-      }
-    }
-  }
-
-  .content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 24px;
-    background-color: var(--color-bg-primary);
-  }
+  min-height: var(--height-screen);
+  min-width: 0; // keng jadval sahifani cho'zib yubormasin
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .overlay {
-    display: block;
-  }
+.content {
+  flex: 1;
+  width: var(--width-100-percent);
+  padding-top: var(--gap-24);
+  padding-bottom: var(--gap-32);
+}
 
-  .sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    transform: translateX(-100%);
+/**
+ * Sahifalar ichidagi bloklar orasidagi bo'shliq shu yerdan beriladi.
+ * Har bir sahifa o'zi `margin-bottom` yozgan payt qiymatlar asta-sekin
+ * bir-biridan farq qila boshlagandi — endi bitta manba.
+ */
+.inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-24);
+}
 
-    &.open {
-      transform: translateX(0);
-    }
-
-    .sidebar_header .close_btn {
-      display: block;
-    }
-  }
-
-  .main_wrapper {
-    .header {
-      padding: 0 16px;
-
-      .header_left {
-        .burger_btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 40px;
-          height: 40px;
-          border-radius: 8px;
-          background: var(--color-bg-secondary);
-          font-size: 20px;
-        }
-      }
-
-      .header_right {
-        .theme_btn {
-          padding: 8px 10px;
-          font-size: 13px;
-        }
-      }
-    }
-
-    .content {
-      padding: 16px;
-    }
+/* ── Planshet va mobil ───────────────────────────────────────
+   Pastki tabbar kontentning oxirini yopib qo'ymasligi kerak:
+   balandligi + chetdagi masofa (ikki tomondan) + iPhone "home
+   indicator" zaxirasi qo'shiladi. */
+@media (max-width: 1024px) {
+  .content {
+    padding-bottom: calc(
+      var(--tabbar-height) + var(--tabbar-inset) * 2 + var(--gap-16) +
+        env(safe-area-inset-bottom, 0px)
+    );
   }
 }

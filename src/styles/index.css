@@ -1,5 +1,17 @@
+/**
+ * Uslublar tartibi — pastdagilar yuqoridagilarni bosadi, shuning
+ * uchun ketma-ketlik muhim:
+ *   fonts      → @font-face e'lonlari
+ *   colors     → tema tokenlari (light/dark)
+ *   variables  → o'lcham, oraliq, animatsiya tokenlari
+ *   globals    → html/body asosi, scrollbar, NProgress, sahifa o'tishi
+ *   panel      → panel primitivlari (tugma, maydon, jadval, grid)
+ *   animations → kalit kadrlar va yordamchi sinflar
+ */
 @import './fonts/goldman.css';
 @import './fonts/inter.css';
 @import './colors.css';
 @import './variables.css';
 @import './globals.css';
+@import './panel.css';
+@import './animations.css';

@@ -1,88 +1,140 @@
-import React, { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  TbMovie,
+  TbUsers,
+  TbBroadcast,
+  TbEye,
+  TbRefresh,
+  TbTrophy,
+} from "react-icons/tb";
 import styles from "./index.module.scss";
-import Card from "../../components/ui/Card";
-import Asset from "@asset";
+import { Card, Stat, Empty, ErrorBox, Loading, PageHead, Badge } from "../../components/ui";
+import { RankChart } from "../../components/charts";
+import { num } from "../../utils/format";
 import FilmService from "../../api/services/filmService";
 import UsersService from "../../api/services/usersService";
 import StatisticsService from "../../api/services/statisticsService";
+import ChannelsService from "../../api/services/channelService";
 
+/**
+ * Boshqaruv paneli — "hozir qanday holat" degan savolga bir qarashda
+ * javob beradi.
+ *
+ * Ilgari bu yerda uchta kartochka ichida harf-o'rinbosarlar ("F",
+ * "U", "★") va "Xush kelibsiz" matni turardi. Xush kelibsiz matni har
+ * kuni panelni ochadigan odam uchun ma'lumot emas — o'rniga eng ko'p
+ * ko'rilgan filmlar reytingi qo'yildi.
+ */
 function Dashboard() {
-  const [stats, setStats] = useState({
-    films: 0,
-    users: 0,
-    topFilm: null,
-  });
-  const [isLoading, setIsLoading] = useState(true);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const [filmsRes, usersRes, topRes] = await Promise.all([
-          FilmService.getList(),
-          UsersService.getList({ page: 1 }),
-          StatisticsService.getTop(1, 1),
-        ]);
+  const load = useCallback(async () => {
+    setError(null);
 
-        setStats({
-          films: filmsRes?.pagination?.totalFilms || 0,
-          users: usersRes?.data?.totalDocs || 0,
-          topFilm: topRes?.data?.[0] || null,
-        });
-      } catch (error) {
-        console.error("Dashboard yuklashda xatolik:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchStats();
+    // Hammasi parallel: ketma-ket so'ralsa sahifa to'rt marta kutilardi.
+    // `allSettled` — bittasi yiqilsa ham qolganlari ko'rsatiladi, chunki
+    // to'liq bo'sh ekrandan ko'ra qisman ma'lumot foydaliroq.
+    const [films, users, top, channels] = await Promise.allSettled([
+      FilmService.getList(),
+      UsersService.getList({ page: 1 }),
+      StatisticsService.getTop(8, 1),
+      ChannelsService.getList(),
+    ]);
+
+    const val = (r) => (r.status === "fulfilled" ? r.value : null);
+    const failed = [films, users, top, channels].find((r) => r.status === "rejected");
+
+    const channelList = val(channels)?.data || [];
+
+    setData({
+      films: val(films)?.pagination?.totalFilms ?? 0,
+      users: val(users)?.data?.totalDocs ?? 0,
+      channels: channelList.length,
+      activeChannels: channelList.filter((c) => c.is_active).length,
+      top: val(top)?.data || [],
+    });
+
+    if (failed) setError(failed.reason);
   }, []);
 
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (!data && !error) return <Loading rows={4} />;
+
+  const top = data?.top || [];
+  const totalViews = top.reduce((sum, f) => sum + (f.views || 0), 0);
+  const chart = top.slice(0, 6).map((f) => ({ name: f.name, value: f.views || 0 }));
+
   return (
-    <div className={styles.wrapper}>
-      <div className={styles.stats_grid}>
-        <Card className={styles.stat_card}>
-          <div className={styles.stat_icon_wrapper} style={{ backgroundColor: 'var(--color-accent-soft)' }}>
-            <span className={styles.icon_placeholder}>F</span>
-          </div>
-          <div className={styles.stat_info}>
-            <p className={styles.stat_label}>Jami Filmlar</p>
-            <h3 className={styles.stat_value}>{isLoading ? "..." : stats.films}</h3>
-          </div>
-        </Card>
-        
-        <Card className={styles.stat_card}>
-          <div className={styles.stat_icon_wrapper} style={{ backgroundColor: 'var(--color-danger-soft)' }}>
-            <span className={styles.icon_placeholder}>U</span>
-          </div>
-          <div className={styles.stat_info}>
-            <p className={styles.stat_label}>Bot Foydalanuvchilari</p>
-            <h3 className={styles.stat_value}>{isLoading ? "..." : stats.users}</h3>
-          </div>
-        </Card>
+    <>
+      <PageHead>
+        <button type="button" className="btn ghost sm" onClick={load}>
+          <TbRefresh size={14} /> Yangilash
+        </button>
+      </PageHead>
 
-        <Card className={styles.stat_card}>
-          <div className={styles.stat_icon_wrapper} style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)' }}>
-            <span className={styles.icon_placeholder}>★</span>
-          </div>
-          <div className={styles.stat_info}>
-            <p className={styles.stat_label}>Eng ko'p ko'rilgan</p>
-            <h3 className={styles.stat_value_text} title={stats.topFilm?.name}>
-              {isLoading ? "..." : (stats.topFilm?.name || "Yo'q")}
-            </h3>
-            <p className={styles.stat_subvalue}>{stats.topFilm?.views || 0} marta</p>
-          </div>
-        </Card>
+      <ErrorBox error={error} onRetry={load} />
+
+      {/* ── Asosiy ko'rsatkichlar ─────────────────────────────── */}
+      <div className="grid c4">
+        <Stat
+          icon={TbMovie}
+          label="Jami filmlar"
+          value={num(data?.films)}
+          sub="katalogdagi kinolar"
+        />
+        <Stat
+          icon={TbUsers}
+          label="Bot foydalanuvchilari"
+          value={num(data?.users)}
+          sub="ro'yxatdan o'tganlar"
+          tone="info"
+        />
+        <Stat
+          icon={TbBroadcast}
+          label="Majburiy kanallar"
+          value={num(data?.channels)}
+          sub={`${num(data?.activeChannels)} tasi faol`}
+          tone="ok"
+        />
+        <Stat
+          icon={TbEye}
+          label="Top filmlar ko'rishi"
+          value={num(totalViews)}
+          sub="eng mashhur 8 ta bo'yicha"
+          tone="warn"
+        />
       </div>
 
-      <div className={styles.content_grid}>
-        <Card title="Xush kelibsiz!" subtitle="Doda Kino administrator boshqaruv paneli" className={styles.welcome_card}>
-          <Asset.Icon name="logo" style={{ width: "200px", margin: "20px 0" }} />
-          <p className={styles.welcome_text}>
-            Bu yerdan siz barcha filmlar, epizodlar, obuna kanallari va bot foydalanuvchilarini boshqarishingiz mumkin. Chap tomondagi menyudan kerakli bo'limni tanlang.
-          </p>
+      {/* ── Eng ko'p ko'rilganlar ─────────────────────────────── */}
+      <Card title="Eng ko'p ko'rilgan filmlar" icon={TbTrophy}>
+        {chart.length ? (
+          <RankChart data={chart} height={280} />
+        ) : (
+          <Empty>Hozircha ko'rishlar statistikasi yo'q</Empty>
+        )}
+      </Card>
+
+      {/* ── Reyting ro'yxati ──────────────────────────────────── */}
+      {top.length > 0 && (
+        <Card title="Reyting" icon={TbEye}>
+          <ol className={styles.rankList}>
+            {top.map((film, i) => (
+              <li key={film._id || film.code || i} className={styles.rankRow}>
+                <span className={styles.rankNum}>{i + 1}</span>
+                <span className={styles.rankName} title={film.name}>
+                  {film.name}
+                </span>
+                <Badge tone={i === 0 ? "ok" : ""}>{num(film.views)} ko'rish</Badge>
+              </li>
+            ))}
+          </ol>
         </Card>
-      </div>
-    </div>
+      )}
+    </>
   );
 }
 

@@ -40,6 +40,7 @@ export const ENDPOINTS = {
     BY_ID: (id) => `/film/id/${id}`,
     SEARCH: "/film/search",
     AI_SUGGEST: "/film/ai-suggest",
+    NEXT_CODE: "/film/next-code",
     UPDATE: (id) => `/film/${id}`,
     DELETE: (id) => `/film/${id}`,
   },
@@ -48,6 +49,7 @@ export const ENDPOINTS = {
   EPISODES: {
     CREATE: "/episode",
     AI_SUGGEST: "/episode/ai-suggest",
+    NEXT_CODE: "/episode/next-code",
     BY_CODE: (code) => `/episode/code/${code}`,
     UPDATE: (id) => `/episode/${id}`,
     // `id` o'rniga epizod `code` ini ham qabul qiladi
@@ -68,6 +70,10 @@ export const ENDPOINTS = {
   STATISTICS: {
     LIST: "/statistics",
     TOP: "/statistics/top",
+    USERS_GROWTH: "/statistics/users-growth",
+    FILMS: "/statistics/films",
+    FILM_VIEWS: "/statistics/film-views",
+    CHANNEL_JOINS: "/statistics/channel-joins",
   },
   
   // ─── BOT (multibot) ──────────────────────────────────────────

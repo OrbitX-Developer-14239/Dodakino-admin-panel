@@ -16,8 +16,36 @@
       }
     </script>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#F3F4F6" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- Qiymat src/styles/colors.css dagi --color-bg-primary bilan bir xil bo'lishi SHART -->
+  <meta name="theme-color" content="#0b0d12" />
+
+  <!--
+    Tema JS bundle'dan OLDIN qo'llanadi — aks holda sahifa avval bir
+    rejimda chizilib, keyin ikkinchisiga "sakrardi" (FOUC): panel
+    qorong'i, birinchi kadr esa oq bo'lardi.
+
+    QOIDA ThemeManager BILAN AYNAN BIR XIL bo'lishi shart (src/index.js
+    saqlanmagan holatda "auto" beradi): saqlangan qiymat yo'q yoki
+    "auto" bo'lsa — tizim rejimi; aks holda o'sha qiymat.
+  -->
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem("theme");
+        var dark =
+          t === "dark" ||
+          ((!t || t === "auto") && matchMedia("(prefers-color-scheme: dark)").matches);
+
+        var root = document.documentElement;
+        root.classList.add(dark ? "dark" : "light");
+        root.style.colorScheme = dark ? "dark" : "light";
+
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute("content", dark ? "#0b0d12" : "#f3f4f8");
+      } catch (e) { }
+    })();
+  </script>
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="mobile-web-app-capable" content="yes" />

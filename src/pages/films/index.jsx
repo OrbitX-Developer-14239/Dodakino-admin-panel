@@ -1,11 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import styles from "./index.module.scss";
-import Card from "../../components/ui/Card";
-import Table from "../../components/ui/Table";
-import Button from "../../components/ui/Button";
-import Input from "../../components/ui/Input";
-import Modal from "../../components/ui/Modal";
+import { Button, Card, Input, Modal, Pagination, Table } from "../../components/ui";
 import FilmService from "../../api/services/filmService";
+import EpisodeService from "../../api/services/episodeService";
+import BotService from "../../api/services/botService";
 import FilmDetailPanel from "./components/FilmDetailPanel";
 import EpisodeDetailModal from "./components/EpisodeDetailModal";
 import AddEpisodeModal from "./components/AddEpisodeModal";
@@ -48,6 +46,56 @@ function FilmsPage() {
   // AI to'ldirish holati
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiNotice, setAiNotice] = useState(null);
+
+  /**
+   * Tanlangan botning media ("cloud") kanali.
+   *
+   * Film va qism yaratishda "Kanal ID" maydoni shu bilan o'zi to'ladi —
+   * ilgari uni har safar qo'lda yozish kerak edi va bitta raqam xato
+   * bo'lsa bot videoni topa olmasdi. Maydon tahrirlanadigan bo'lib qoladi.
+   */
+  const [botChannelId, setBotChannelId] = useState("");
+
+  useEffect(() => {
+    BotService.info()
+      .then((res) => setBotChannelId(res?.data?.channelId || ""))
+      .catch(() => { /* kanal olinmasa maydon bo'sh qoladi, qo'lda yoziladi */ });
+  }, []);
+
+  /**
+   * BO'SH KODLAR OLDINDAN TAYYOR.
+   *
+   * Ilgari kod oyna ochilgandagina so'ralardi va javob kelguncha maydon
+   * bo'sh turardi. Endi sahifaga kirilishi bilan ikkalasi (film va qism)
+   * olinib turadi — oyna ochilganda kod DARHOL yozilgan bo'ladi.
+   *
+   * NEGA SERVERDA (Redis) EMAS: oldindan saqlangan kod eskirib qoladi —
+   * boshqa admin shu orada film qo'shsa, keshdagi kod band bo'lib qolardi
+   * va har yaratish/o'chirishda keshni tozalash kerak bo'lardi. Bu yerda
+   * esa kod sahifa ochilganda, har yaratish/o'chirishdan keyin va oyna
+   * ochilganda fonda qayta tekshiriladi. Band bo'lib qolgan taqdirda ham
+   * backend uni rad etadi — noto'g'ri yozuv tushmaydi.
+   */
+  const [nextCodes, setNextCodes] = useState({ film: "", episode: "" });
+
+  const refreshNextCodes = useCallback(async () => {
+    const [film, episode] = await Promise.allSettled([
+      FilmService.nextCode(),
+      EpisodeService.nextCodes(1),
+    ]);
+    const codes = {
+      film: film.status === "fulfilled" && film.value?.data?.code ? String(film.value.data.code) : "",
+      episode: episode.status === "fulfilled" && episode.value?.data?.codes?.[0]
+        ? String(episode.value.data.codes[0])
+        : "",
+    };
+    setNextCodes(codes);
+    return codes;
+  }, []);
+
+  useEffect(() => {
+    refreshNextCodes();
+  }, [refreshNextCodes]);
 
   // Saqlash jarayoni (tugmadagi loader uchun)
   const [isSaving, setIsSaving] = useState(false);
@@ -105,14 +153,24 @@ function FilmsPage() {
     fetchFilms(1); // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // To'liq filmni oladi. Qidiruv natijasida _id bo'lmasligi mumkin
+  // (eski qidiruv indeksi) — u holda kod bo'yicha so'raladi.
+  const loadFullFilm = async (film) => {
+    const res = film._id
+      ? await FilmService.getById(film._id)
+      : await FilmService.getByCode(film.code);
+    const full = res?.data || res;
+    if (!full?._id) throw new Error("Film topilmadi");
+    return full;
+  };
+
   // ─── Filmni bosish → to'liq ma'lumot olish ──
   const handleFilmClick = async (film) => {
     setSelectedFilm(film);
     setDetailFilm(null);
     setIsDetailLoading(true);
     try {
-      const res = await FilmService.getById(film._id);
-      setDetailFilm(res?.data || res);
+      setDetailFilm(await loadFullFilm(film));
     } catch (error) {
       console.error("Film ma'lumotini yuklashda xatolik:", error);
       setDetailFilm(film);
@@ -167,10 +225,19 @@ function FilmsPage() {
 
   const handleOpenCreate = () => {
     setEditingFilm(null);
-    setFormData(EMPTY_FORM);
+    // Oldindan tayyorlangan kod darhol yoziladi
+    const cached = nextCodes.film;
+    setFormData({ ...EMPTY_FORM, posterChannelId: botChannelId, code: cached });
     setPosterFile(null);
     setAiNotice(null);
     setIsEditModalOpen(true);
+
+    // Fonda qayta tekshiriladi: shu orada boshqa admin film qo'shgan bo'lsa
+    // kod yangilanadi. Foydalanuvchi o'zi kod yozgan bo'lsa tegilmaydi.
+    refreshNextCodes().then(({ film }) => {
+      if (!film) return;
+      setFormData((prev) => (!prev.code || prev.code === cached ? { ...prev, code: film } : prev));
+    });
   };
 
   // ─── AI bilan to'ldirish ──────────────────
@@ -267,6 +334,7 @@ function FilmsPage() {
       }
       setIsEditModalOpen(false);
       fetchFilms(currentPage);
+      refreshNextCodes();
     } catch (error) {
       alert("Xatolik: " + (error?.message || "Noma'lum xato"));
     } finally {
@@ -281,6 +349,7 @@ function FilmsPage() {
     try {
       await FilmService.delete(id);
       handleClosePanel();
+      refreshNextCodes();
       fetchFilms(films.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage);
     } catch (error) {
       alert("O'chirishda xatolik: " + (error?.message || "Noma'lum xato"));
@@ -290,10 +359,10 @@ function FilmsPage() {
   // ─── Episode yangilanganda panel refresh ──
   const handleEpisodeUpdate = async () => {
     if (selectedFilm) {
-      const res = await FilmService.getById(selectedFilm._id);
-      setDetailFilm(res?.data || res);
+      setDetailFilm(await loadFullFilm(detailFilm || selectedFilm));
     }
     fetchFilms(currentPage);
+    refreshNextCodes();
   };
 
   // ─── Jadval ustunlari ─────────────────────
@@ -365,31 +434,22 @@ function FilmsPage() {
           onRowClick={handleFilmClick}
         />
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className={styles.pagination}>
-            <Button variant="ghost" disabled={currentPage <= 1} onClick={() => fetchFilms(currentPage - 1)}>
-              ← Oldingi
-            </Button>
-            <span className={styles.page_info}>{currentPage} / {totalPages}</span>
-            <Button variant="ghost" disabled={currentPage >= totalPages} onClick={() => fetchFilms(currentPage + 1)}>
-              Keyingi →
-            </Button>
-          </div>
-        )}
+        <Pagination page={currentPage} totalPages={totalPages} onChange={fetchFilms} />
       </Card>
 
       {/* Film detail side panel */}
-      {selectedFilm && (
-        <FilmDetailPanel
-          film={isDetailLoading ? selectedFilm : (detailFilm || selectedFilm)}
-          onClose={handleClosePanel}
-          onEdit={handleOpenEdit}
-          onDelete={handleDelete}
-          onEpisodeClick={(ep) => setSelectedEpisode(ep)}
-          onAddEpisode={(film) => setAddEpisodeFilm(detailFilm || film)}
-        />
-      )}
+      {/* Doim render qilinadi: film null bo'lganda panel o'zi silliq
+          yopiladi. Shartli render (`{selectedFilm && ...}`) uni DOM dan
+          darhol olib tashlab, yopilish animatsiyasiga vaqt qoldirmasdi. */}
+      <FilmDetailPanel
+        film={selectedFilm ? (isDetailLoading ? selectedFilm : (detailFilm || selectedFilm)) : null}
+        loading={isDetailLoading}
+        onClose={handleClosePanel}
+        onEdit={handleOpenEdit}
+        onDelete={handleDelete}
+        onEpisodeClick={(ep) => setSelectedEpisode(ep)}
+        onAddEpisode={(film) => setAddEpisodeFilm(detailFilm || film)}
+      />
 
       {/* Kino yaratish / tahrirlash modali */}
       <Modal
@@ -559,7 +619,7 @@ function FilmsPage() {
         <EpisodeDetailModal
           episode={selectedEpisode}
           onClose={() => setSelectedEpisode(null)}
-          onUpdate={() => { handleEpisodeUpdate(); setSelectedEpisode(null); }}
+          onUpdate={handleEpisodeUpdate}
         />
       )}
 
@@ -567,6 +627,8 @@ function FilmsPage() {
       {addEpisodeFilm && (
         <AddEpisodeModal
           film={addEpisodeFilm}
+          defaultChannelId={botChannelId}
+          defaultCode={nextCodes.episode}
           onClose={() => setAddEpisodeFilm(null)}
           onSuccess={handleEpisodeUpdate}
         />
