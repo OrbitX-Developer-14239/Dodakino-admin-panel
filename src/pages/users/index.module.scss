@@ -17,3 +17,11 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+
+/* "bloklagan" belgisi yonidagi vaqt — qachondan beri */
+.since {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-11);
+}

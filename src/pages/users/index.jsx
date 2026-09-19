@@ -25,6 +25,14 @@ const STATUS_OPTIONS = [
   { value: "false", label: "Obuna emas" },
 ];
 
+/** Bot bilan aloqa holati — backenddagi `bot_status` bilan bir xil */
+const BOT_OPTIONS = [
+  { value: ALL, label: "Hammasi" },
+  { value: "active", label: "Faol" },
+  { value: "blocked", label: "Bloklagan" },
+  { value: "unreachable", label: "Oʻchirilgan" },
+];
+
 const PAGE_SIZE = 50;
 
 const percent = (part, whole) => (whole ? `${Math.round((part / whole) * 100)}%` : "0%");
@@ -42,6 +50,7 @@ export default function UsersPage() {
   const [channels, setChannels] = useState([]);
   const [channel, setChannel] = useState(ALL);
   const [status, setStatus] = useState(ALL);
+  const [botStatus, setBotStatus] = useState(ALL);
   const [page, setPage] = useState(1);
   const [error, setError] = useState(null);
 
@@ -55,6 +64,7 @@ export default function UsersPage() {
         const params = { page, limit: PAGE_SIZE };
         if (channel !== ALL) params.channel_id = channel;
         if (status !== ALL) params.is_subscribed = status;
+        if (botStatus !== ALL) params.bot_status = botStatus;
 
         const res = await client.get(ENDPOINTS.USERS, { params, silent });
         if (id !== requestId.current) return;
@@ -64,7 +74,7 @@ export default function UsersPage() {
         if (id === requestId.current) setError(e);
       }
     },
-    [page, channel, status]
+    [page, channel, status, botStatus]
   );
 
   useEffect(() => {
@@ -86,6 +96,10 @@ export default function UsersPage() {
   };
   const changeStatus = (v) => {
     setStatus(v);
+    setPage(1);
+  };
+  const changeBotStatus = (v) => {
+    setBotStatus(v);
     setPage(1);
   };
 
@@ -122,7 +136,7 @@ export default function UsersPage() {
 
       <ErrorBox error={error} onRetry={() => load()} />
 
-      <div className="grid c3">
+      <div className="grid c4">
         <Stat label="Jami foydalanuvchilar" value={num(counts?.all)} sub="botdan foydalanganlar" />
         <Stat
           label="Obunachilar"
@@ -135,6 +149,12 @@ export default function UsersPage() {
           value={num(counts?.unsubscribed)}
           sub={`${scope(false)} · ${percent(counts?.unsubscribed, counts?.all)}`}
           tone="danger"
+        />
+        <Stat
+          label="Botni bloklagan"
+          value={num(counts?.blocked)}
+          sub={`${percent(counts?.blocked, counts?.all)} · ${num(counts?.unreachable)} ta akkaunt oʻchirilgan`}
+          tone="warn"
         />
       </div>
 
@@ -155,6 +175,7 @@ export default function UsersPage() {
               />
             ))}
           <Segmented label="Obuna holati" options={STATUS_OPTIONS} value={status} onChange={changeStatus} />
+          <Segmented label="Bot holati" options={BOT_OPTIONS} value={botStatus} onChange={changeBotStatus} />
           <span className="spacer" />
           <span className="hint">{num(data?.totalDocs)} ta</span>
         </div>
@@ -168,6 +189,7 @@ export default function UsersPage() {
                   <th>Ism</th>
                   <th>Username</th>
                   <th>{selected ? `${selected.name} holati` : "Obuna holati"}</th>
+                  <th>Bot</th>
                   <th>Qoʻshilgan</th>
                 </tr>
               </thead>
@@ -182,6 +204,18 @@ export default function UsersPage() {
                         <Badge tone="ok">obunachi</Badge>
                       ) : (
                         <Badge tone="danger">obuna emas</Badge>
+                      )}
+                    </td>
+                    <td className={styles.date}>
+                      {u.blocked ? (
+                        <span title={u.blocked_at ? `Bloklangan: ${time(u.blocked_at)}` : undefined}>
+                          <Badge tone="warn">bloklagan</Badge>
+                          {u.blocked_at && <span className={styles.since}>{time(u.blocked_at)}</span>}
+                        </span>
+                      ) : u.unreachable ? (
+                        <Badge>akkaunt oʻchirilgan</Badge>
+                      ) : (
+                        <Badge tone="ok">faol</Badge>
                       )}
                     </td>
                     <td className={styles.date}>{time(u.createdAt)}</td>
