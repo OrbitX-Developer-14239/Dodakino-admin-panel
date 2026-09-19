@@ -1,0 +1,175 @@
+/* ── Profil ──────────────────────────────────── */
+.profile {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-16);
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--border-radius-circle);
+  background-color: var(--color-accent-soft);
+  color: var(--color-accent);
+  object-fit: cover;
+}
+
+.profileText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.profileName {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-16);
+}
+
+.bio {
+  margin: var(--gap-4) 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-13);
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+/* ── Postlar ─────────────────────────────────── */
+.posts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: var(--gap-12);
+}
+
+.post {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-8);
+  padding: var(--padding-8);
+  border: 1px solid var(--color-border-secondary);
+  border-radius: var(--border-radius-12);
+  background-color: var(--color-bg-secondary);
+  animation: fade-up var(--duration-base) var(--ease-out) both;
+  animation-delay: calc(min(var(--i, 0), 10) * var(--stagger-step));
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+
+  &:hover {
+    border-color: var(--color-accent);
+    transform: translateY(-2px);
+  }
+}
+
+.thumb {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--border-radius-8);
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-muted);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  > span {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+  }
+}
+
+.caption {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-12);
+  line-height: 1.45;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.postStats {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-10);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-12);
+  font-variant-numeric: tabular-nums;
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+}
+
+/* ── Hikoyalar ───────────────────────────────── */
+.upload {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-8);
+  flex-wrap: wrap;
+  margin-bottom: var(--gap-16);
+}
+
+.fileName {
+  flex: 1;
+  min-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ok {
+  margin: 0 0 var(--gap-12);
+  color: var(--color-ok);
+  font-size: var(--font-size-13);
+}
+
+.stories {
+  display: flex;
+  gap: var(--gap-10);
+  overflow-x: auto;
+  padding-bottom: var(--gap-4);
+}
+
+.story {
+  position: relative;
+  flex: 0 0 96px;
+  aspect-ratio: 9 / 16;
+  overflow: hidden;
+  border-radius: var(--border-radius-12);
+  background-color: var(--color-bg-hover);
+
+  img,
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.storyTime {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  left: 6px;
+  padding: 2px 6px;
+  border-radius: var(--border-radius-6);
+  background-color: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: var(--font-size-11);
+  text-align: center;
+}

@@ -1,0 +1,19 @@
+/* Filtrlar qatori — kanal, holat va natija soni */
+.filters {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-8);
+  flex-wrap: wrap;
+  margin-bottom: var(--gap-12);
+}
+
+.channelSelect {
+  width: auto;
+  min-width: 180px;
+}
+
+/* Sana "2026.09.15 10:00" — ikki qatorga bo'linmasin, raqamlar tekis */
+.date {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
