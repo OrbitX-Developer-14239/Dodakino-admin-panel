@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { TbRefresh, TbUsers } from "react-icons/tb";
+import { TbRefresh, TbSearch, TbUsers } from "react-icons/tb";
 import styles from "./index.module.scss";
 import client from "../../api/client";
 import { ENDPOINTS } from "../../api/endpoints";
@@ -51,7 +51,18 @@ export default function UsersPage() {
   const [channel, setChannel] = useState(ALL);
   const [status, setStatus] = useState(ALL);
   const [botStatus, setBotStatus] = useState(ALL);
+  const [q, setQ] = useState("");
+  const [query, setQuery] = useState(""); // q ning kechiktirilgan nusxasi
   const [page, setPage] = useState(1);
+
+  // Har harf bosilganda so'rov ketmasin — yozib bo'lgach qidiriladi
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setQuery(q.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [q]);
   const [error, setError] = useState(null);
 
   // Filtr tez almashtirilganda eskirgan javob yangisining ustiga yozilmasin
@@ -65,6 +76,7 @@ export default function UsersPage() {
         if (channel !== ALL) params.channel_id = channel;
         if (status !== ALL) params.is_subscribed = status;
         if (botStatus !== ALL) params.bot_status = botStatus;
+        if (query) params.q = query;
 
         const res = await client.get(ENDPOINTS.USERS, { params, silent });
         if (id !== requestId.current) return;
@@ -74,7 +86,7 @@ export default function UsersPage() {
         if (id === requestId.current) setError(e);
       }
     },
-    [page, channel, status, botStatus]
+    [page, channel, status, botStatus, query]
   );
 
   useEffect(() => {
@@ -158,7 +170,22 @@ export default function UsersPage() {
         />
       </div>
 
-      <Card title="Bot foydalanuvchilari" icon={TbUsers}>
+      <Card
+        title="Bot foydalanuvchilari"
+        icon={TbUsers}
+        actions={
+          <label className={styles.search}>
+            <TbSearch size={15} />
+            <input
+              type="search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Ism yoki username…"
+              aria-label="Foydalanuvchi qidirish"
+            />
+          </label>
+        }
+      >
         <div className={styles.filters}>
           {channels.length > 0 &&
             (channels.length <= 3 ? (
@@ -225,7 +252,9 @@ export default function UsersPage() {
             </table>
           </div>
         ) : (
-          <Empty icon={TbUsers}>Bu filtr boʻyicha foydalanuvchi topilmadi</Empty>
+          <Empty icon={TbUsers}>
+            {query ? `“${query}” boʻyicha foydalanuvchi topilmadi` : "Bu filtr boʻyicha foydalanuvchi topilmadi"}
+          </Empty>
         )}
 
         <Pagination page={data?.page || page} totalPages={data?.totalPages} onChange={setPage} />
