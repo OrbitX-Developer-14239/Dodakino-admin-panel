@@ -176,8 +176,6 @@ export default function Instagram() {
                   <span title="Koʻrishlar">
                     <TbEye size={13} /> {stat(post.views)}
                   </span>
-                  <span className="spacer" />
-                  <span className={styles.postDate}>{ago(post.timestamp)}</span>
                 </div>
               </button>
             ))}
