@@ -14,8 +14,8 @@ import styles from "./index.module.scss";
 import client from "../../api/client";
 import { ENDPOINTS } from "../../api/endpoints";
 import { TrendChart } from "../../components/charts";
-import { Badge, Card, Empty, ErrorBox, Loading, PageHead, Stat } from "../../components/ui";
-import { ago, compact, num } from "../../utils/format";
+import { Badge, Card, Empty, ErrorBox, Loading, Modal, PageHead, Stat } from "../../components/ui";
+import { ago, compact, num, time } from "../../utils/format";
 
 /**
  * Instagram sahifasi — obunachilar, postlar va hikoyalar.
@@ -23,10 +23,30 @@ import { ago, compact, num } from "../../utils/format";
  * Ma'lumot Meta API dan keladi. Token eskirsa yoki API javob bermasa
  * sahifa bo'sh qolmaydi: har bo'lim alohida so'raladi va nima
  * yiqilgani aniq aytiladi.
+ *
+ * Post yoki hikoya ustiga bosilganda o'rtadan oyna ochiladi: to'liq
+ * matn, sana va statistika o'sha yerda. Ro'yxatning o'zida faqat eng
+ * kerakli uchta raqam turadi — aks holda kartochkalar raqamga to'lib
+ * ketardi.
  */
+
+/**
+ * Sana va "necha vaqt oldin". Eski sanada `ago()` ning o'zi sanaga
+ * aylanadi — u holda bir narsa ikki marta yozilmasligi uchun bittasi qoladi.
+ */
+const when = (ts) => {
+  const abs = time(ts);
+  const rel = ago(ts);
+  return rel === abs ? abs : `${abs} · ${rel}`;
+};
+
+/** Instagram kam ko'rilgan media statistikasini bermaydi — nol EMAS, "—" */
+const stat = (v) => (v === null || v === undefined ? "—" : compact(v));
+
 export default function Instagram() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [openMedia, setOpenMedia] = useState(null); // { kind: "post"|"story", item }
 
   const load = useCallback(async (silent = false) => {
     const get = (url) => client.get(url, { silent }).then((r) => r?.data);
@@ -49,7 +69,7 @@ export default function Instagram() {
 
   const p = data?.profile;
   const overall = data?.posts?.overallStats;
-  const posts = data?.posts?.topPosts?.length ? data.posts.topPosts : data?.posts?.allMedia?.slice(0, 8) || [];
+  const posts = data?.posts?.allMedia || [];
   const stories = Array.isArray(data?.stories) ? data.stories : [];
 
   const growthData = (data?.growth?.labels || []).map((label, i) => ({
@@ -106,7 +126,12 @@ export default function Instagram() {
         <Stat label="Obunachilar" value={compact(p?.followers_count)} sub="followers" tone="ok" />
         <Stat label="Obunalar" value={compact(p?.follows_count)} sub="following" />
         <Stat label="Postlar" value={num(p?.media_count)} sub="jami nashrlar" tone="info" />
-        <Stat label="Koʻrishlar" value={compact(overall?.totalViews)} sub={`${num(overall?.totalPosts)} ta post boʻyicha`} tone="warn" />
+        <Stat
+          label="Koʻrishlar"
+          value={stat(overall?.totalViews)}
+          sub={`${num(overall?.totalPosts)} ta post · ${stat(overall?.totalReach)} qamrov`}
+          tone="warn"
+        />
       </div>
 
       <div className="grid c2">
@@ -118,20 +143,23 @@ export default function Instagram() {
           )}
         </Card>
 
-        <StoriesCard stories={stories} onUploaded={() => load(true)} />
+        <StoriesCard
+          stories={stories}
+          onUploaded={() => load(true)}
+          onOpen={(item) => setOpenMedia({ kind: "story", item })}
+        />
       </div>
 
       <Card title="Eng yaxshi postlar" icon={TbStars}>
         {posts.length ? (
           <div className={`${styles.posts} anim-stagger`}>
             {posts.map((post, i) => (
-              <a
+              <button
                 key={post.id}
+                type="button"
                 className={styles.post}
-                href={post.url}
-                target="_blank"
-                rel="noopener noreferrer"
                 style={{ "--i": i }}
+                onClick={() => setOpenMedia({ kind: "post", item: post })}
               >
                 <div className={styles.thumb}>
                   {post.thumbnail ? <img src={post.thumbnail} alt="" loading="lazy" /> : <TbBrandInstagram size={24} />}
@@ -139,31 +167,116 @@ export default function Instagram() {
                 </div>
                 <p className={styles.caption}>{post.caption || "Izohsiz"}</p>
                 <div className={styles.postStats}>
-                  <span>
-                    <TbHeart size={13} /> {compact(post.likes)}
+                  <span title="Yoqtirishlar">
+                    <TbHeart size={13} /> {stat(post.likes)}
                   </span>
-                  <span>
-                    <TbMessageCircle size={13} /> {compact(post.comments)}
+                  <span title="Izohlar">
+                    <TbMessageCircle size={13} /> {stat(post.comments)}
                   </span>
-                  <span>
-                    <TbEye size={13} /> {compact(post.views)}
+                  <span title="Koʻrishlar">
+                    <TbEye size={13} /> {stat(post.views)}
                   </span>
                   <span className="spacer" />
-                  <TbExternalLink size={13} />
+                  <span className={styles.postDate}>{ago(post.timestamp)}</span>
                 </div>
-              </a>
+              </button>
             ))}
           </div>
         ) : (
           <Empty>Post topilmadi</Empty>
         )}
       </Card>
+
+      {openMedia && <MediaModal {...openMedia} onClose={() => setOpenMedia(null)} />}
     </>
   );
 }
 
+/* ── Post / hikoya oynasi ─────────────────────────────────── */
+function MediaModal({ kind, item, onClose }) {
+  const isStory = kind === "story";
+  const isVideo = item.type === "VIDEO";
+
+  const rows = isStory
+    ? [
+        ["Turi", isVideo ? "Video" : "Rasm"],
+        ["Qoʻyilgan", when(item.timestamp)],
+        ["Oʻchadi", item.expiresAt ? time(item.expiresAt) : "—"],
+        ["Koʻrishlar", stat(item.views)],
+        ["Qamrov", stat(item.reach)],
+        ["Javoblar", stat(item.replies)],
+      ]
+    : [
+        ["Turi", isVideo ? (item.productType === "REELS" ? "Reels" : "Video") : "Rasm"],
+        ["Nashr etilgan", when(item.timestamp)],
+        ["Yoqtirishlar", stat(item.likes)],
+        ["Izohlar", stat(item.comments)],
+        ["Koʻrishlar", stat(item.views)],
+        ["Qamrov", stat(item.reach)],
+        ["Ulashilgan", stat(item.shares)],
+        ["Saqlagan", stat(item.saved)],
+      ];
+
+  // Statistika yo'qligi xato emas: Instagram kam ko'rilgan media uchun
+  // uni bermaydi. Shuni ochiq aytamiz, aks holda "—" tushunarsiz qoladi.
+  const noStats = item.views === null && item.reach === null;
+
+  return (
+    <Modal
+      open
+      title={isStory ? "Hikoya" : "Post"}
+      onClose={onClose}
+      actions={
+        <>
+          <span className="spacer" />
+          <button type="button" className="btn ghost sm" onClick={onClose}>
+            Yopish
+          </button>
+          {item.url && (
+            <a className="btn" href={item.url} target="_blank" rel="noopener noreferrer">
+              <TbExternalLink size={14} /> {isStory ? "Hikoyani ochish" : "Instagramda ochish"}
+            </a>
+          )}
+        </>
+      }
+    >
+      <div className={styles.modalBody}>
+        <div className={`${styles.preview} ${isStory ? styles.previewStory : ""}`}>
+          {isVideo && item.mediaUrl ? (
+            <video src={item.mediaUrl} controls playsInline poster={item.thumbnail || undefined} />
+          ) : item.thumbnail ? (
+            <img src={item.thumbnail} alt="" />
+          ) : (
+            <TbBrandInstagram size={28} />
+          )}
+        </div>
+
+        <div className={styles.details}>
+          <dl className={styles.rows}>
+            {rows.map(([label, value]) => (
+              <div key={label} className={styles.row}>
+                <dt>{label}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+
+          {noStats && (
+            <p className="hint">
+              Instagram statistikani kam koʻrilgan media uchun bermaydi — koʻruvchilar
+              koʻpaygach raqamlar oʻzi paydo boʻladi.
+            </p>
+          )}
+
+          {item.caption && <p className={styles.modalCaption}>{item.caption}</p>}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 /* ── Hikoyalar va yuklash ─────────────────────────────────── */
-function StoriesCard({ stories, onUploaded }) {
+function StoriesCard({ stories, onUploaded, onOpen }) {
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -214,14 +327,24 @@ function StoriesCard({ stories, onUploaded }) {
       {stories.length ? (
         <div className={styles.stories}>
           {stories.map((s) => (
-            <div key={s.id} className={styles.story} title={s.caption || ""}>
-              {s.media_type === "VIDEO" ? (
-                <video src={s.media_url} muted preload="metadata" />
+            <button
+              key={s.id}
+              type="button"
+              className={styles.story}
+              onClick={() => onOpen?.(s)}
+              title="Batafsil"
+            >
+              {s.type === "VIDEO" ? (
+                <video src={s.mediaUrl} muted preload="metadata" poster={s.thumbnail || undefined} />
               ) : (
-                <img src={s.media_url} alt="" loading="lazy" />
+                <img src={s.thumbnail || s.mediaUrl} alt="" loading="lazy" />
               )}
-              <span className={styles.storyTime}>{ago(s.timestamp)}</span>
-            </div>
+              <span className={styles.storyTop}>{s.type === "VIDEO" ? "video" : "rasm"}</span>
+              <span className={styles.storyTime}>
+                {ago(s.timestamp)}
+                {s.views !== null && s.views !== undefined && ` · ${compact(s.views)} 👁`}
+              </span>
+            </button>
           ))}
         </div>
       ) : (
