@@ -8,6 +8,7 @@ import {
   TbPhotoUp,
   TbRefresh,
   TbEye,
+  TbPlus,
   TbStars,
   TbTrash,
 } from "react-icons/tb";
@@ -51,6 +52,7 @@ export default function Instagram() {
   const [error, setError] = useState(null);
   const [openMedia, setOpenMedia] = useState(null); // { kind: "post"|"story", item }
   const [refreshing, runRefresh] = useBusy();
+  const [composing, setComposing] = useState(false);
 
   const load = useCallback(async (silent = false) => {
     const get = (url) => client.get(url, { silent }).then((r) => r?.data);
@@ -72,7 +74,6 @@ export default function Instagram() {
   if (!data && !error) return <Loading rows={5} />;
 
   const p = data?.profile;
-  const overall = data?.posts?.overallStats;
   const posts = data?.posts?.allMedia || [];
   const stories = Array.isArray(data?.stories) ? data.stories : [];
 
@@ -93,6 +94,9 @@ export default function Instagram() {
           onClick={() => runRefresh(() => load())}
         >
           Yangilash
+        </Button>
+        <Button icon={TbPlus} onClick={() => setComposing(true)} disabled={!p}>
+          Yangi post
         </Button>
       </PageHead>
 
@@ -133,16 +137,10 @@ export default function Instagram() {
         </Card>
       )}
 
-      <div className="grid c4">
+      <div className="grid c3">
         <Stat label="Obunachilar" value={compact(p?.followers_count)} sub="followers" tone="ok" />
         <Stat label="Obunalar" value={compact(p?.follows_count)} sub="following" />
         <Stat label="Postlar" value={num(p?.media_count)} sub="jami nashrlar" tone="info" />
-        <Stat
-          label="Koʻrishlar"
-          value={stat(overall?.totalViews)}
-          sub={`${num(overall?.totalPosts)} ta post · ${stat(overall?.totalReach)} qamrov`}
-          tone="warn"
-        />
       </div>
 
       <div className="grid c2">
@@ -162,8 +160,17 @@ export default function Instagram() {
       </div>
 
       <Card title="Eng yaxshi postlar" icon={TbStars}>
-        {posts.length ? (
+        {p || posts.length ? (
           <div className={`${styles.posts} anim-stagger`}>
+            {p && (
+              <button type="button" className={styles.addPost} onClick={() => setComposing(true)}>
+                <span className={styles.addIcon}>
+                  <TbPlus size={22} />
+                </span>
+                <strong>Yangi post</strong>
+                <span className="hint">rasm — post, video — Reels</span>
+              </button>
+            )}
             {posts.map((post, i) => (
               <button
                 key={post.id}
@@ -195,6 +202,16 @@ export default function Instagram() {
           <Empty>Post topilmadi</Empty>
         )}
       </Card>
+
+      {composing && (
+        <NewPostModal
+          onClose={() => setComposing(false)}
+          onPublished={() => {
+            setComposing(false);
+            load();
+          }}
+        />
+      )}
 
       {openMedia && (
         <MediaModal
@@ -313,6 +330,169 @@ function MediaModal({ kind, item, onClose, onDeleted }) {
 
       {/* Portal: post oynasi ustiga chiqadi, Escape faqat uni yopadi */}
       {confirmDialog}
+    </Modal>
+  );
+}
+
+/* ── Yangi post ───────────────────────────────────────────── */
+const CAPTION_MAX = 2200; // Instagram chegarasi
+const FILE_MAX = 100 * 1024 * 1024; // backenddagi chegara bilan bir xil
+
+/**
+ * Rasm — oddiy post, video — Reels (lentaga ham chiqadi).
+ *
+ * Ikki bosqich, ikkalasi ham tugmada ko'rinadi:
+ *   1) fayl serverga ketmoqda — foiz bilan;
+ *   2) server uni Instagramga joylayapti — video uchun 1-3 daqiqa,
+ *      bu bosqichning foizi yo'q.
+ * Oyna shu vaqt yopilmaydi: yopilsa ham post baribir chiqib ketardi va
+ * admin natijasini bilmay qolardi.
+ */
+function NewPostModal({ onClose, onPublished }) {
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [caption, setCaption] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState(null);
+  const fileRef = useRef(null);
+
+  const isVideo = file?.type?.startsWith("video/");
+
+  // Tanlangan fayl ko'rinishi — eski havola xotiradan bo'shatiladi
+  useEffect(() => {
+    if (!file) return undefined;
+    const url = URL.createObjectURL(file);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  const pick = (f) => {
+    setError(null);
+    if (!f) return;
+    if (f.size > FILE_MAX) {
+      setError(new Error(`Fayl juda katta (${Math.round(f.size / 1024 / 1024)} MB) — eng koʻpi 100 MB`));
+      return;
+    }
+    setFile(f);
+  };
+
+  const publish = async () => {
+    if (!file) return;
+    setBusy(true);
+    setProgress(0);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("media", file);
+      if (caption.trim()) fd.append("caption", caption.trim());
+      await client.post(ENDPOINTS.INSTAGRAM.POSTS, fd, {
+        timeout: 330000, // Reels qayta ishlanishi — 5 daqiqagacha
+        onUploadProgress: (e) => {
+          if (e.total) setProgress(Math.min(100, Math.round((e.loaded / e.total) * 100)));
+        },
+      });
+      onPublished?.();
+    } catch (e) {
+      setError(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const busyText =
+    progress < 100
+      ? `Yuklanmoqda… ${progress}%`
+      : isVideo
+        ? "Reels tayyorlanmoqda…"
+        : "Instagramga joylanmoqda…";
+
+  return (
+    <Modal
+      open
+      title="Yangi post"
+      onClose={() => !busy && onClose()}
+      actions={
+        <>
+          <span className="hint">
+            {file ? (isVideo ? "Video Reels boʻlib chiqadi" : "Rasm post boʻlib chiqadi") : "Fayl tanlanmagan"}
+          </span>
+          <span className="spacer" />
+          <button type="button" className="btn ghost sm" onClick={onClose} disabled={busy}>
+            Bekor qilish
+          </button>
+          <Button icon={TbBrandInstagram} busy={busy} busyText={busyText} disabled={!file} onClick={publish}>
+            Joylash
+          </Button>
+        </>
+      }
+    >
+      <ErrorBox error={error} />
+
+      <div className={styles.modalBody}>
+        <button
+          type="button"
+          className={`${styles.preview} ${styles.picker} ${isVideo ? styles.previewStory : ""}`}
+          onClick={() => !busy && fileRef.current?.click()}
+          disabled={busy}
+          aria-label="Rasm yoki video tanlash"
+        >
+          {preview ? (
+            isVideo ? <video src={preview} muted controls playsInline /> : <img src={preview} alt="" />
+          ) : (
+            <span className={styles.pickerEmpty}>
+              <TbPlus size={24} />
+              Rasm yoki video tanlang
+              <small>JPEG rasm yoki MP4/MOV video · 100 MB gacha</small>
+            </span>
+          )}
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,video/mp4,video/quicktime"
+          hidden
+          onChange={(e) => pick(e.target.files?.[0] || null)}
+        />
+
+        <div className={styles.details}>
+          <label className="field">
+            <span>Izoh</span>
+            <textarea
+              value={caption}
+              onChange={(e) => setCaption(e.target.value.slice(0, CAPTION_MAX))}
+              placeholder="Post matni, heshteglar…"
+              rows={8}
+              disabled={busy}
+            />
+            <small>{num(caption.length)} / {num(CAPTION_MAX)} belgi</small>
+          </label>
+
+          {file && (
+            <p className="hint">
+              {file.name} · {(file.size / 1024 / 1024).toFixed(1)} MB
+              {!busy && (
+                <>
+                  {" · "}
+                  <button type="button" className={styles.linkBtn} onClick={() => fileRef.current?.click()}>
+                    boshqasini tanlash
+                  </button>
+                </>
+              )}
+            </p>
+          )}
+
+          {busy && (
+            <div className={styles.progress} role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
+              <span className={progress >= 100 ? styles.progressWait : ""} style={{ width: `${progress}%` }} />
+            </div>
+          )}
+
+          {busy && progress >= 100 && isVideo && (
+            <p className="hint">Instagram videoni qayta ishlayapti — bu 1–3 daqiqa davom etishi mumkin.</p>
+          )}
+        </div>
+      </div>
     </Modal>
   );
 }
