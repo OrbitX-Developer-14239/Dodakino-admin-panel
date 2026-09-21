@@ -320,3 +320,78 @@ export function Button({
     </button>
   );
 }
+
+/* ── Tasdiqlash oynasi ────────────────────────
+   O'chirish kabi qaytarilmaydigan amal oldidan. Brauzerning
+   `window.confirm` oynasi o'rnida: u panel dizayniga tegmaydi, tungi
+   mavzuni bilmaydi va amal bajarilayotganini ko'rsata olmaydi.
+
+   BOSHQA OYNA USTIDA: film oynasi ochiq turganda "O'chirish" bosilsa,
+   bu oyna uning ustiga chiqadi. Escape faqat SHU oynani yopishi kerak —
+   shuning uchun klaviatura hodisasi capture bosqichida ushlanadi va
+   ostidagi oynaga yetib bormaydi.
+
+   Amal xato bilan tugasa oyna yopilmaydi — xato shu yerda ko'rinadi. */
+export function Confirm({
+  open,
+  title = "Tasdiqlang",
+  message,
+  details,
+  confirmText = "Oʻchirish",
+  busyText = "Oʻchirilmoqda…",
+  cancelText = "Bekor qilish",
+  tone = "danger",
+  busy = false,
+  error = null,
+  onConfirm,
+  onCancel,
+}) {
+  useEffect(() => {
+    if (!open) return undefined;
+    // Faqat Escape ushlanadi. Enter ATAYLAB tasdiqlamaydi: fokus
+    // "Bekor qilish" da turadi, tasodifiy Enter hech narsani o’chirmasin.
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      if (!busy) onCancel?.();
+    };
+    window.addEventListener("keydown", onKey, true);
+    const unlock = lockScroll();
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      unlock();
+    };
+  }, [open, busy, onCancel]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div className={`${styles.modalWrap} ${styles.confirmWrap}`} role="alertdialog" aria-modal="true" aria-label={title}>
+      <div className={styles.modalOverlay} onClick={() => !busy && onCancel?.()} role="presentation" />
+
+      <div className={`${styles.modal} ${styles.confirm}`}>
+        <header className={styles.modalHead}>
+          <h2 className={styles.modalTitle}>{title}</h2>
+        </header>
+
+        <div className={styles.modalBody}>
+          {message && <p className={styles.confirmText}>{message}</p>}
+          {details && <p className="hint">{details}</p>}
+          <ErrorBox error={error} />
+        </div>
+
+        <footer className={styles.modalFoot}>
+          <span className="spacer" />
+          <button type="button" className="btn ghost sm" onClick={onCancel} disabled={busy} autoFocus>
+            {cancelText}
+          </button>
+          <Button variant={tone === "danger" ? "danger" : ""} size="sm" busy={busy} busyText={busyText} onClick={onConfirm}>
+            {confirmText}
+          </Button>
+        </footer>
+      </div>
+    </div>,
+    document.body
+  );
+}

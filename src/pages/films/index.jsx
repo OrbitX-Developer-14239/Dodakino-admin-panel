@@ -16,6 +16,7 @@ import styles from "./index.module.scss";
 import client from "../../api/client";
 import { ENDPOINTS } from "../../api/endpoints";
 import { useBusy } from "../../hooks/useBusy";
+import { useConfirm } from "../../hooks/useConfirm";
 import {
   Badge,
   Button,
@@ -301,32 +302,34 @@ function FilmModal({ filmRef, botChannelId, nextEpisodeCode, readOnly, onClose, 
     back();
   };
 
-  const [removingFilm, runRemoveFilm] = useBusy();
-  const [removingEpisodeId, setRemovingEpisodeId] = useState(null);
+  const [confirm, confirmDialog] = useConfirm();
 
-  const removeFilm = async () => {
-    if (!window.confirm(`“${film.name}” va uning barcha qismlari oʻchirilsinmi? Bu qaytarilmaydi.`)) return;
-    try {
-      await runRemoveFilm(() => client.delete(ENDPOINTS.FILMS.ITEM(film._id)));
-      onDeleted?.();
-    } catch (e) {
-      setError(e);
-    }
-  };
+  const removeFilm = () =>
+    confirm({
+      title: "Filmni oʻchirish",
+      message: `“${film.name}” (kod ${film.code}) oʻchirilsinmi?`,
+      details: `Uning barcha qismlari ham (${num(film.episodesCount ?? film.episodes?.length ?? 0)} ta) oʻchadi. Bu amalni qaytarib boʻlmaydi.`,
+      confirmText: "Oʻchirish",
+      busyText: "Oʻchirilmoqda…",
+      action: async () => {
+        await client.delete(ENDPOINTS.FILMS.ITEM(film._id));
+        onDeleted?.();
+      },
+    });
 
-  const removeEpisode = async (ep) => {
-    if (!window.confirm(`${ep.episodeNumber}-qism (kod ${ep.code}) oʻchirilsinmi?`)) return;
-    try {
-      setRemovingEpisodeId(ep.episodeId);
-      await client.delete(ENDPOINTS.EPISODES.ITEM(ep.episodeId));
-      await load();
-      onChanged?.();
-    } catch (e) {
-      setError(e);
-    } finally {
-      setRemovingEpisodeId(null);
-    }
-  };
+  const removeEpisode = (ep) =>
+    confirm({
+      title: "Qismni oʻchirish",
+      message: `${ep.episodeNumber}-qism — “${ep.name}” (kod ${ep.code}) oʻchirilsinmi?`,
+      details: "Bu amalni qaytarib boʻlmaydi.",
+      confirmText: "Oʻchirish",
+      busyText: "Oʻchirilmoqda…",
+      action: async () => {
+        await client.delete(ENDPOINTS.EPISODES.ITEM(ep.episodeId));
+        await load();
+        onChanged?.();
+      },
+    });
 
   const episodes = [...(film?.episodes || [])].sort(
     (a, b) => (a.season || 1) - (b.season || 1) || a.episodeNumber - b.episodeNumber
@@ -350,7 +353,7 @@ function FilmModal({ filmRef, botChannelId, nextEpisodeCode, readOnly, onClose, 
       actions={
         view.name === "detail" && film && !readOnly ? (
           <>
-            <Button variant="danger" size="sm" icon={TbTrash} busy={removingFilm} busyText="Oʻchirilmoqda…" onClick={removeFilm}>
+            <Button variant="danger" size="sm" icon={TbTrash} onClick={removeFilm}>
               Oʻchirish
             </Button>
             <span className="spacer" />
@@ -425,8 +428,6 @@ function FilmModal({ filmRef, botChannelId, nextEpisodeCode, readOnly, onClose, 
                         variant="ghost"
                         size="sm"
                         icon={TbTrash}
-                        busy={removingEpisodeId === ep.episodeId}
-                        disabled={Boolean(removingEpisodeId) && removingEpisodeId !== ep.episodeId}
                         onClick={() => removeEpisode(ep)}
                         aria-label="Qismni oʻchirish"
                       />
@@ -456,6 +457,9 @@ function FilmModal({ filmRef, botChannelId, nextEpisodeCode, readOnly, onClose, 
           onSaved={saved}
         />
       )}
+
+      {/* Portal: film oynasining ustiga chiqadi, Escape faqat uni yopadi */}
+      {confirmDialog}
     </Modal>
   );
 }

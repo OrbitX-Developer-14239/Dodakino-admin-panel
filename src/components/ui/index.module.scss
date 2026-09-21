@@ -532,3 +532,21 @@
     animation-duration: 1.6s;
   }
 }
+
+/* ── Tasdiqlash oynasi ────────────────────────
+   Boshqa oyna ustida ochilishi mumkin — shuning uchun qatlami undan
+   yuqori. Tor: bu yerda faqat bitta savol va ikkita tugma. */
+.confirmWrap {
+  z-index: calc(var(--z-modal) + 20);
+}
+
+.confirm {
+  max-width: 440px;
+}
+
+.confirmText {
+  margin: 0 0 var(--gap-8);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-14);
+  line-height: 1.55;
+}

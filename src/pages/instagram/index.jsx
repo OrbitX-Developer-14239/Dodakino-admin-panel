@@ -9,6 +9,7 @@ import {
   TbRefresh,
   TbEye,
   TbStars,
+  TbTrash,
 } from "react-icons/tb";
 import styles from "./index.module.scss";
 import client from "../../api/client";
@@ -16,6 +17,7 @@ import { ENDPOINTS } from "../../api/endpoints";
 import { TrendChart } from "../../components/charts";
 import { Badge, Button, Card, Empty, ErrorBox, Loading, Modal, PageHead, Stat } from "../../components/ui";
 import { useBusy } from "../../hooks/useBusy";
+import { useConfirm } from "../../hooks/useConfirm";
 import { ago, compact, num, time } from "../../utils/format";
 
 /**
@@ -194,15 +196,42 @@ export default function Instagram() {
         )}
       </Card>
 
-      {openMedia && <MediaModal {...openMedia} onClose={() => setOpenMedia(null)} />}
+      {openMedia && (
+        <MediaModal
+          {...openMedia}
+          onClose={() => setOpenMedia(null)}
+          onDeleted={() => {
+            setOpenMedia(null);
+            load();
+          }}
+        />
+      )}
     </>
   );
 }
 
 /* ── Post / hikoya oynasi ─────────────────────────────────── */
-function MediaModal({ kind, item, onClose }) {
+function MediaModal({ kind, item, onClose, onDeleted }) {
   const isStory = kind === "story";
   const isVideo = item.type === "VIDEO";
+  const [confirm, confirmDialog] = useConfirm();
+
+  const remove = () =>
+    confirm({
+      title: isStory ? "Hikoyani oʻchirish" : "Postni oʻchirish",
+      message: isStory
+        ? "Bu hikoya Instagramdan oʻchirilsinmi?"
+        : `Bu ${item.productType === "REELS" ? "Reels" : "post"} Instagramdan oʻchirilsinmi?`,
+      details: isStory
+        ? "Hikoya darhol yoʻqoladi, uni koʻrganlar statistikasi ham oʻchadi. Bu amalni qaytarib boʻlmaydi."
+        : `Layklar (${stat(item.likes)}), izohlar (${stat(item.comments)}) va koʻrishlar ham birga oʻchadi. Bu amalni qaytarib boʻlmaydi.`,
+      confirmText: "Instagramdan oʻchirish",
+      busyText: "Oʻchirilmoqda…",
+      action: async () => {
+        await client.delete(ENDPOINTS.INSTAGRAM.MEDIA(item.id));
+        onDeleted?.();
+      },
+    });
 
   const rows = isStory
     ? [
@@ -235,6 +264,9 @@ function MediaModal({ kind, item, onClose }) {
       onClose={onClose}
       actions={
         <>
+          <Button variant="danger" size="sm" icon={TbTrash} onClick={remove}>
+            Oʻchirish
+          </Button>
           <span className="spacer" />
           <button type="button" className="btn ghost sm" onClick={onClose}>
             Yopish
@@ -278,6 +310,9 @@ function MediaModal({ kind, item, onClose }) {
           {item.caption && <p className={styles.modalCaption}>{item.caption}</p>}
         </div>
       </div>
+
+      {/* Portal: post oynasi ustiga chiqadi, Escape faqat uni yopadi */}
+      {confirmDialog}
     </Modal>
   );
 }

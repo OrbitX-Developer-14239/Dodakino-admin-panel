@@ -80,5 +80,7 @@ export const ENDPOINTS = {
     GROWTH: "/instagram/growth",
     POSTS: "/instagram/posts",
     STORIES: "/instagram/stories",
+    /** Post, Reels yoki hikoyani o'chirish (DELETE) — qaytarilmaydi */
+    MEDIA: (id) => `/instagram/media/${id}`,
   },
 };

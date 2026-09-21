@@ -5,6 +5,7 @@ import client from "../../api/client";
 import { ENDPOINTS } from "../../api/endpoints";
 import { Badge, Button, Card, Empty, ErrorBox, Loading, Modal, PageHead, Select, Switch } from "../../components/ui";
 import { useBusy } from "../../hooks/useBusy";
+import { useConfirm } from "../../hooks/useConfirm";
 import { num } from "../../utils/format";
 
 const JOIN_TYPES = [
@@ -37,8 +38,7 @@ export default function Channels() {
   const [editingChannel, setEditingChannel] = useState(null);
 
   const [refreshing, runRefresh] = useBusy();
-  // Qaysi kanal o'chirilmoqda — faqat o'sha qatordagi tugma aylanadi
-  const [removingId, setRemovingId] = useState(null);
+  const [confirm, confirmDialog] = useConfirm();
 
   const loadChannels = useCallback(async () => {
     try {
@@ -71,18 +71,18 @@ export default function Channels() {
 
   const afterChange = () => Promise.all([loadChannels(), loadAvailable(false)]);
 
-  const remove = async (channel) => {
-    if (!window.confirm("Rostdan ham bu kanalni majburiy obunadan olib tashlamoqchimisiz?")) return;
-    setRemovingId(channel._id);
-    try {
-      await client.delete(ENDPOINTS.CHANNELS.ITEM(channel._id));
-      await afterChange();
-    } catch (e) {
-      setError(e);
-    } finally {
-      setRemovingId(null);
-    }
-  };
+  const remove = (channel) =>
+    confirm({
+      title: "Kanalni olib tashlash",
+      message: `“${channel.name}” majburiy obuna kanallaridan olib tashlansinmi?`,
+      details: "Foydalanuvchilardan bu kanalga obuna endi talab qilinmaydi. Kanalning oʻzi Telegramda qoladi.",
+      confirmText: "Olib tashlash",
+      busyText: "Olib tashlanmoqda…",
+      action: async () => {
+        await client.delete(ENDPOINTS.CHANNELS.ITEM(channel._id));
+        await afterChange();
+      },
+    });
 
   if (!channels && !error) return <Loading rows={4} />;
 
@@ -149,15 +149,7 @@ export default function Channels() {
                         <button type="button" className="btn ghost sm" onClick={() => setEditingChannel(ch)}>
                           <TbPencil size={13} /> Tahrirlash
                         </button>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          icon={TbTrash}
-                          busy={removingId === ch._id}
-                          busyText="Oʻchirilmoqda…"
-                          disabled={Boolean(removingId) && removingId !== ch._id}
-                          onClick={() => remove(ch)}
-                        >
+                        <Button variant="danger" size="sm" icon={TbTrash} onClick={() => remove(ch)}>
                           Oʻchirish
                         </Button>
                       </div>
@@ -273,6 +265,8 @@ export default function Channels() {
           }}
         />
       )}
+
+      {confirmDialog}
     </>
   );
 }
