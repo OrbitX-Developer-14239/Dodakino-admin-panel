@@ -18,17 +18,19 @@ import { TokenManager } from "./tokenManager";
 import { ApiError } from "./errors";
 import { getSelectedBotId, TENANT_PATH_PREFIXES } from "./botContext";
 
-// ─── NProgress — haqiqiy so'rovlarga bog'langan progress ─────────
-// Bar birinchi so'rov boshlanganda chiqadi va OXIRGI faol so'rov
-// tugagandagina yakunlanadi — tezlik haqiqiy tarmoq holatini aks
-// ettiradi, soxta timer emas.
+// ─── NProgress — faqat sahifaga o'tishda ─────────────────────────
+// Yuqoridagi chiziq SAHIFA almashayotganini bildiradi (router uni
+// o'zi boshqaradi). So'rovlar uni SUKUT BO'YICHA yoqmaydi: filtr,
+// "Yangilash", saqlash kabi amallarning har birida chiziq chiqsa, u
+// sahifa almashayotgandek aldab ko'rsatardi. Bunday amallarning holati
+// o'z joyida ko'rinadi — tugma ichidagi yuklanish belgisi yoki
+// xiralashgan ro'yxat.
 //
-// FON SO'ROVLARI: `client.get(url, { silent: true })` chiziqni umuman
-// ko'rsatmaydi. Panel ko'p joyda avtomatik yangilanadi — silent
-// bo'lmasa bar tinimsiz miltillardi.
+// Kamdan-kam hol uchun ochiq yoqish mumkin: `client.get(url, { progress: true })`.
+// Eski `{ silent: true }` belgisi zararsiz qoladi (endi u sukut).
 let activeRequests = 0;
 
-const isSilent = (config) => Boolean(config?.silent);
+const isSilent = (config) => config?.progress !== true;
 
 const progressStart = () => {
   if (activeRequests === 0) NProgress.start();

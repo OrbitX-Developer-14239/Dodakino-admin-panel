@@ -15,8 +15,10 @@ import {
 import styles from "./index.module.scss";
 import client from "../../api/client";
 import { ENDPOINTS } from "../../api/endpoints";
+import { useBusy } from "../../hooks/useBusy";
 import {
   Badge,
+  Button,
   Card,
   Empty,
   ErrorBox,
@@ -52,19 +54,24 @@ export default function Films() {
   const [creating, setCreating] = useState(false);
   const [openFilmId, setOpenFilmId] = useState(null);
 
-  const load = useCallback(
-    async (silent = false) => {
-      try {
-        const res = await client.get(ENDPOINTS.FILMS.LIST, { params: { page }, silent });
-        // Bu endpoint `data` ga o'ramaydi: { success, films, pagination }
-        setList({ films: res?.films || [], pagination: res?.pagination || null });
-        setError(null);
-      } catch (e) {
-        setError(e);
-      }
-    },
-    [page]
-  );
+  // Sahifa almashganda / qidiruvda jadval xiralashadi
+  const [listBusy, setListBusy] = useState(false);
+  const [refreshing, runRefresh] = useBusy();
+  const [searching, runSearch] = useBusy();
+
+  const load = useCallback(async () => {
+    setListBusy(true);
+    try {
+      const res = await client.get(ENDPOINTS.FILMS.LIST, { params: { page } });
+      // Bu endpoint `data` ga o'ramaydi: { success, films, pagination }
+      setList({ films: res?.films || [], pagination: res?.pagination || null });
+      setError(null);
+    } catch (e) {
+      setError(e);
+    } finally {
+      setListBusy(false);
+    }
+  }, [page]);
 
   useEffect(() => {
     load();
@@ -91,20 +98,22 @@ export default function Films() {
       .catch(() => {});
   }, [refreshCodes]);
 
-  const search = async (e) => {
+  const search = (e) => {
     e?.preventDefault();
     const q = query.trim();
     if (!q) {
       setSearched(null);
-      return;
+      return undefined;
     }
-    try {
-      const res = await client.post(ENDPOINTS.FILMS.SEARCH, { query: q });
-      setSearched(Array.isArray(res?.data) ? res.data : res?.data ? [res.data] : []);
-      setError(null);
-    } catch (err) {
-      setError(err);
-    }
+    return runSearch(async () => {
+      try {
+        const res = await client.post(ENDPOINTS.FILMS.SEARCH, { query: q });
+        setSearched(Array.isArray(res?.data) ? res.data : res?.data ? [res.data] : []);
+        setError(null);
+      } catch (err) {
+        setError(err);
+      }
+    });
   };
 
   const clearSearch = () => {
@@ -114,7 +123,7 @@ export default function Films() {
 
   // O'zgarishdan keyin: ro'yxat, qidiruv natijasi va bo'sh kodlar yangilanadi
   const afterChange = () => {
-    load(true);
+    load();
     refreshCodes();
     if (searched) search();
   };
@@ -128,18 +137,24 @@ export default function Films() {
   return (
     <>
       <PageHead>
-        <button type="button" className="btn ghost sm" onClick={() => load()}>
-          <TbRefresh size={14} /> Yangilash
-        </button>
-        <button
-          type="button"
-          className="btn"
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={TbRefresh}
+          busy={refreshing}
+          busyText="Yangilanmoqda…"
+          onClick={() => runRefresh(() => Promise.all([load(), refreshCodes()]))}
+        >
+          Yangilash
+        </Button>
+        <Button
+          icon={TbPlus}
           onClick={() => setCreating(true)}
           disabled={composite}
           title={composite ? "Aralash bot kontentni boshqa botlardan oladi — film shu botlarda qoʻshiladi" : ""}
         >
-          <TbPlus size={14} /> Yangi kino
-        </button>
+          Yangi kino
+        </Button>
       </PageHead>
 
       <ErrorBox error={error} onRetry={() => load()} />
@@ -154,8 +169,8 @@ export default function Films() {
         title={searched ? `Qidiruv natijasi · ${num(films.length)} ta` : "Barcha filmlar"}
         icon={TbMovie}
         actions={
-          <form className={styles.search} onSubmit={search} role="search">
-            <TbSearch size={15} />
+          <form className={styles.search} onSubmit={search} role="search" aria-busy={searching || undefined}>
+            {searching ? <span className={styles.searchSpinner} aria-label="Qidirilmoqda" /> : <TbSearch size={15} />}
             <input
               type="search"
               value={query}
@@ -174,6 +189,7 @@ export default function Films() {
           </form>
         }
       >
+        <div className="loading-dim" data-busy={listBusy || searching || undefined}>
         {films.length ? (
           <div className="table-wrap">
             <table>
@@ -215,6 +231,7 @@ export default function Films() {
         {!searched && (
           <Pagination page={pg?.currentPage || page} totalPages={pg?.totalPages} onChange={setPage} />
         )}
+        </div>
       </Card>
 
       {creating && (
@@ -284,10 +301,13 @@ function FilmModal({ filmRef, botChannelId, nextEpisodeCode, readOnly, onClose, 
     back();
   };
 
+  const [removingFilm, runRemoveFilm] = useBusy();
+  const [removingEpisodeId, setRemovingEpisodeId] = useState(null);
+
   const removeFilm = async () => {
     if (!window.confirm(`“${film.name}” va uning barcha qismlari oʻchirilsinmi? Bu qaytarilmaydi.`)) return;
     try {
-      await client.delete(ENDPOINTS.FILMS.ITEM(film._id));
+      await runRemoveFilm(() => client.delete(ENDPOINTS.FILMS.ITEM(film._id)));
       onDeleted?.();
     } catch (e) {
       setError(e);
@@ -297,11 +317,14 @@ function FilmModal({ filmRef, botChannelId, nextEpisodeCode, readOnly, onClose, 
   const removeEpisode = async (ep) => {
     if (!window.confirm(`${ep.episodeNumber}-qism (kod ${ep.code}) oʻchirilsinmi?`)) return;
     try {
+      setRemovingEpisodeId(ep.episodeId);
       await client.delete(ENDPOINTS.EPISODES.ITEM(ep.episodeId));
       await load();
       onChanged?.();
     } catch (e) {
       setError(e);
+    } finally {
+      setRemovingEpisodeId(null);
     }
   };
 
@@ -327,9 +350,9 @@ function FilmModal({ filmRef, botChannelId, nextEpisodeCode, readOnly, onClose, 
       actions={
         view.name === "detail" && film && !readOnly ? (
           <>
-            <button type="button" className="btn danger sm" onClick={removeFilm}>
-              <TbTrash size={13} /> Oʻchirish
-            </button>
+            <Button variant="danger" size="sm" icon={TbTrash} busy={removingFilm} busyText="Oʻchirilmoqda…" onClick={removeFilm}>
+              Oʻchirish
+            </Button>
             <span className="spacer" />
             <button type="button" className="btn ghost sm" onClick={() => setView({ name: "edit" })}>
               <TbPencil size={13} /> Tahrirlash
@@ -398,14 +421,15 @@ function FilmModal({ filmRef, botChannelId, nextEpisodeCode, readOnly, onClose, 
                       >
                         <TbPencil size={13} />
                       </button>
-                      <button
-                        type="button"
-                        className="btn ghost sm"
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        icon={TbTrash}
+                        busy={removingEpisodeId === ep.episodeId}
+                        disabled={Boolean(removingEpisodeId) && removingEpisodeId !== ep.episodeId}
                         onClick={() => removeEpisode(ep)}
                         aria-label="Qismni oʻchirish"
-                      >
-                        <TbTrash size={13} />
-                      </button>
+                      />
                     </span>
                   )}
                 </div>
@@ -557,9 +581,17 @@ function FilmForm({ film, defaultCode = "", defaultChannelId = "", onCancel, onS
           <span>Kino nomi</span>
           <input type="text" value={form.name} onChange={set("name")} required placeholder="Masalan: Afsona" />
         </label>
-        <button type="button" className={`btn ghost sm ${styles.aiBtn}`} onClick={aiFill} disabled={aiBusy}>
-          <TbSparkles size={14} /> {aiBusy ? "Toʻldirilmoqda…" : "AI bilan toʻldirish"}
-        </button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={styles.aiBtn}
+          icon={TbSparkles}
+          busy={aiBusy}
+          busyText="AI toʻldirmoqda…"
+          onClick={aiFill}
+        >
+          AI bilan toʻldirish
+        </Button>
       </div>
 
       <div className={styles.grid2}>
@@ -641,9 +673,16 @@ function FilmForm({ film, defaultCode = "", defaultChannelId = "", onCancel, onS
             Bekor qilish
           </button>
         )}
-        <button type="submit" className="btn" disabled={saving || needsPoster} title={needsPoster ? "Poster kerak" : ""}>
-          <TbDeviceFloppy size={14} /> {saving ? "Saqlanmoqda…" : editing ? "Saqlash" : "Yaratish"}
-        </button>
+        <Button
+          type="submit"
+          icon={TbDeviceFloppy}
+          busy={saving}
+          busyText={editing ? "Saqlanmoqda…" : poster ? "Poster yuklanmoqda…" : "Yaratilmoqda…"}
+          disabled={needsPoster}
+          title={needsPoster ? "Poster kerak" : ""}
+        >
+          {editing ? "Saqlash" : "Yaratish"}
+        </Button>
       </div>
     </form>
   );
@@ -752,9 +791,9 @@ function EpisodeForm({ film, episode, defaultCode, defaultNumber, defaultChannel
         <button type="button" className="btn ghost sm" onClick={onCancel}>
           <TbArrowLeft size={13} /> Orqaga
         </button>
-        <button type="submit" className="btn" disabled={saving}>
-          <TbDeviceFloppy size={14} /> {saving ? "Saqlanmoqda…" : editing ? "Saqlash" : "Qoʻshish"}
-        </button>
+        <Button type="submit" icon={TbDeviceFloppy} busy={saving} busyText={editing ? "Saqlanmoqda…" : "Qoʻshilmoqda…"}>
+          {editing ? "Saqlash" : "Qoʻshish"}
+        </Button>
       </div>
     </form>
   );

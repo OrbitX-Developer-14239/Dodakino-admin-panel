@@ -3,8 +3,10 @@ import { TbRefresh, TbSearch, TbUsers } from "react-icons/tb";
 import styles from "./index.module.scss";
 import client from "../../api/client";
 import { ENDPOINTS } from "../../api/endpoints";
+import { useBusy } from "../../hooks/useBusy";
 import {
   Badge,
+  Button,
   Card,
   Empty,
   ErrorBox,
@@ -47,6 +49,9 @@ const percent = (part, whole) => (whole ? `${Math.round((part / whole) * 100)}%`
  */
 export default function UsersPage() {
   const [data, setData] = useState(null);
+  // Ro'yxat yangilanmoqda (filtr, qidiruv, sahifa) — jadval xiralashadi
+  const [listBusy, setListBusy] = useState(false);
+  const [refreshing, runRefresh] = useBusy();
   const [channels, setChannels] = useState([]);
   const [channel, setChannel] = useState(ALL);
   const [status, setStatus] = useState(ALL);
@@ -69,8 +74,9 @@ export default function UsersPage() {
   const requestId = useRef(0);
 
   const load = useCallback(
-    async (silent = false) => {
+    async () => {
       const id = ++requestId.current;
+      setListBusy(true);
       try {
         const params = { page, limit: PAGE_SIZE };
         if (channel !== ALL) params.channel_id = channel;
@@ -78,12 +84,14 @@ export default function UsersPage() {
         if (botStatus !== ALL) params.bot_status = botStatus;
         if (query) params.q = query;
 
-        const res = await client.get(ENDPOINTS.USERS, { params, silent });
+        const res = await client.get(ENDPOINTS.USERS, { params });
         if (id !== requestId.current) return;
         setData(res?.data || null);
         setError(null);
       } catch (e) {
         if (id === requestId.current) setError(e);
+      } finally {
+        if (id === requestId.current) setListBusy(false);
       }
     },
     [page, channel, status, botStatus, query]
@@ -141,9 +149,16 @@ export default function UsersPage() {
   return (
     <>
       <PageHead>
-        <button type="button" className="btn ghost sm" onClick={() => load()}>
-          <TbRefresh size={14} /> Yangilash
-        </button>
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={TbRefresh}
+          busy={refreshing}
+          busyText="Yangilanmoqda…"
+          onClick={() => runRefresh(load)}
+        >
+          Yangilash
+        </Button>
       </PageHead>
 
       <ErrorBox error={error} onRetry={() => load()} />
@@ -204,9 +219,10 @@ export default function UsersPage() {
           <Segmented label="Obuna holati" options={STATUS_OPTIONS} value={status} onChange={changeStatus} />
           <Segmented label="Bot holati" options={BOT_OPTIONS} value={botStatus} onChange={changeBotStatus} />
           <span className="spacer" />
-          <span className="hint">{num(data?.totalDocs)} ta</span>
+          <span className="hint">{listBusy ? "Yuklanmoqda…" : `${num(data?.totalDocs)} ta`}</span>
         </div>
 
+        <div className="loading-dim" data-busy={listBusy || undefined}>
         {users.length ? (
           <div className="table-wrap">
             <table>
@@ -258,6 +274,7 @@ export default function UsersPage() {
         )}
 
         <Pagination page={data?.page || page} totalPages={data?.totalPages} onChange={setPage} />
+        </div>
       </Card>
     </>
   );

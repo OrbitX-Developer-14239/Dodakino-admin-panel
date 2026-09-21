@@ -14,7 +14,8 @@ import styles from "./index.module.scss";
 import client from "../../api/client";
 import { ENDPOINTS } from "../../api/endpoints";
 import { TrendChart } from "../../components/charts";
-import { Badge, Card, Empty, ErrorBox, Loading, Modal, PageHead, Stat } from "../../components/ui";
+import { Badge, Button, Card, Empty, ErrorBox, Loading, Modal, PageHead, Stat } from "../../components/ui";
+import { useBusy } from "../../hooks/useBusy";
 import { ago, compact, num, time } from "../../utils/format";
 
 /**
@@ -47,6 +48,7 @@ export default function Instagram() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [openMedia, setOpenMedia] = useState(null); // { kind: "post"|"story", item }
+  const [refreshing, runRefresh] = useBusy();
 
   const load = useCallback(async (silent = false) => {
     const get = (url) => client.get(url, { silent }).then((r) => r?.data);
@@ -80,9 +82,16 @@ export default function Instagram() {
   return (
     <>
       <PageHead>
-        <button type="button" className="btn ghost sm" onClick={() => load()}>
-          <TbRefresh size={14} /> Yangilash
-        </button>
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={TbRefresh}
+          busy={refreshing}
+          busyText="Yangilanmoqda…"
+          onClick={() => runRefresh(() => load())}
+        >
+          Yangilash
+        </Button>
       </PageHead>
 
       {error && (
@@ -277,6 +286,9 @@ function MediaModal({ kind, item, onClose }) {
 function StoriesCard({ stories, onUploaded, onOpen }) {
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
+  // Yuklash foizi: 0-99 — fayl serverga ketmoqda, 100 — server uni
+  // Instagramga joylayapti (bu bosqichning foizi yo'q, faqat kutiladi)
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
   const [done, setDone] = useState(false);
   const fileRef = useRef(null);
@@ -284,12 +296,19 @@ function StoriesCard({ stories, onUploaded, onOpen }) {
   const upload = async () => {
     if (!file) return;
     setBusy(true);
+    setProgress(0);
     setError(null);
     setDone(false);
     try {
       const fd = new FormData();
       fd.append("media", file);
-      await client.post(ENDPOINTS.INSTAGRAM.STORIES, fd, { timeout: 120000 });
+      await client.post(ENDPOINTS.INSTAGRAM.STORIES, fd, {
+        // Video uzun yuklanadi va Instagram uni qayta ishlaydi — 5 daqiqa
+        timeout: 300000,
+        onUploadProgress: (e) => {
+          if (e.total) setProgress(Math.min(100, Math.round((e.loaded / e.total) * 100)));
+        },
+      });
       setFile(null);
       setDone(true);
       onUploaded?.();
@@ -297,8 +316,11 @@ function StoriesCard({ stories, onUploaded, onOpen }) {
       setError(e);
     } finally {
       setBusy(false);
+      setProgress(0);
     }
   };
+
+  const busyText = progress < 100 ? `Yuklanmoqda… ${progress}%` : "Instagramga joylanmoqda…";
 
   return (
     <Card title="Hikoyalar" icon={TbPhotoUp} actions={<Badge>{num(stories.length)} ta faol</Badge>}>
@@ -306,13 +328,23 @@ function StoriesCard({ stories, onUploaded, onOpen }) {
       {done && <p className={styles.ok}>Hikoya yuklandi — Instagram uni bir necha soniyada koʻrsatadi.</p>}
 
       <div className={styles.upload}>
-        <button type="button" className="btn ghost sm" onClick={() => fileRef.current?.click()}>
+        <button type="button" className="btn ghost sm" onClick={() => fileRef.current?.click()} disabled={busy}>
           Rasm yoki video tanlash
         </button>
         <span className={`hint ${styles.fileName}`}>{file ? file.name : "tanlanmagan"}</span>
-        <button type="button" className="btn sm" disabled={!file || busy} onClick={upload}>
-          {busy ? "Yuklanmoqda…" : "Hikoya qilish"}
-        </button>
+        <Button size="sm" busy={busy} busyText={busyText} disabled={!file} onClick={upload}>
+          Hikoya qilish
+        </Button>
+      </div>
+
+      {/* Foiz chizig'i — tugmadagi yozuvni ko'z bilan ham ko'rsatadi */}
+      {busy && (
+        <div className={styles.progress} role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
+          <span className={progress >= 100 ? styles.progressWait : ""} style={{ width: `${progress}%` }} />
+        </div>
+      )}
+
+      <div hidden>
         <input
           ref={fileRef}
           type="file"

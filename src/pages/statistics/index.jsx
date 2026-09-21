@@ -5,6 +5,7 @@ import client from "../../api/client";
 import { ENDPOINTS } from "../../api/endpoints";
 import { RankChart, TrendChart } from "../../components/charts";
 import {
+  Button,
   Card,
   Empty,
   ErrorBox,
@@ -65,27 +66,65 @@ function useCardData(url, params, reloadKey, enabled = true) {
 export default function Statistics() {
   const [reloadKey, setReloadKey] = useState(0);
 
+  /**
+   * "Yangilash" uchala kartochkani qayta so'raydi. Tugma HAMMASI
+   * tugaguncha aylanib turadi — kartochkalar o'z holatini shu yerga
+   * xabar qiladi. Kartochka ichida filtr almashtirilganda esa tugma
+   * aylanmaydi: u faqat o'zi bosilgandagi ishni ko'rsatadi.
+   */
+  const [refreshing, setRefreshing] = useState(false);
+  const [busyCards, setBusyCards] = useState({});
+  const reportBusy = useCallback(
+    (name, busy) => setBusyCards((s) => (s[name] === busy ? s : { ...s, [name]: busy })),
+    []
+  );
+  const anyBusy = Object.values(busyCards).some(Boolean);
+
+  // Bosilgan zahoti kartochkalar hali "band" deb xabar bermagan bo'ladi —
+  // tugma darhol o'chib qolmasligi uchun avval ular band bo'lganini
+  // ko'rishimiz kerak, keyin bo'shaganini.
+  const sawBusy = useRef(false);
+  useEffect(() => {
+    if (!refreshing) return;
+    if (anyBusy) sawBusy.current = true;
+    else if (sawBusy.current) {
+      sawBusy.current = false;
+      setRefreshing(false);
+    }
+  }, [refreshing, anyBusy]);
+
   return (
     <>
       <PageHead>
         <span className="hint">Kunlar Toshkent vaqti boʻyicha hisoblanadi</span>
-        <button type="button" className="btn ghost sm" onClick={() => setReloadKey((k) => k + 1)}>
-          <TbRefresh size={14} /> Yangilash
-        </button>
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={TbRefresh}
+          busy={refreshing}
+          busyText="Yangilanmoqda…"
+          onClick={() => {
+            setRefreshing(true);
+            setReloadKey((k) => k + 1);
+          }}
+        >
+          Yangilash
+        </Button>
       </PageHead>
 
-      <UsersGrowth reloadKey={reloadKey} />
-      <FilmViews reloadKey={reloadKey} />
-      <ChannelJoins reloadKey={reloadKey} />
+      <UsersGrowth reloadKey={reloadKey} onBusy={reportBusy} />
+      <FilmViews reloadKey={reloadKey} onBusy={reportBusy} />
+      <ChannelJoins reloadKey={reloadKey} onBusy={reportBusy} />
     </>
   );
 }
 
 /* ── Foydalanuvchilar o'sishi ─────────────────────────────── */
-function UsersGrowth({ reloadKey }) {
+function UsersGrowth({ reloadKey, onBusy }) {
   const [range, setRange] = useState("30");
   const [mode, setMode] = useState("total");
   const { data, error, busy, load } = useCardData(ENDPOINTS.STATISTICS.USERS_GROWTH, { range }, reloadKey);
+  useEffect(() => onBusy?.("growth", busy), [busy, onBusy]);
 
   const points = data?.points || [];
   const newStarted = points.reduce((s, p) => s + (p.newStarted || 0), 0);
@@ -144,7 +183,7 @@ function UsersGrowth({ reloadKey }) {
 }
 
 /* ── Film ko'rishlari ─────────────────────────────────────── */
-function FilmViews({ reloadKey }) {
+function FilmViews({ reloadKey, onBusy }) {
   const [films, setFilms] = useState(null);
   const [code, setCode] = useState("");
   const [range, setRange] = useState("30");
@@ -167,6 +206,7 @@ function FilmViews({ reloadKey }) {
     reloadKey,
     Boolean(code)
   );
+  useEffect(() => onBusy?.("films", busy), [busy, onBusy]);
 
   const points = data?.points || [];
   const chart = points.map((p) => ({ label: dayLabel(p.date), ...p }));
@@ -244,10 +284,11 @@ function FilmViews({ reloadKey }) {
 }
 
 /* ── Majburiy kanallar ────────────────────────────────────── */
-function ChannelJoins({ reloadKey }) {
+function ChannelJoins({ reloadKey, onBusy }) {
   const [range, setRange] = useState("30");
   const [channel, setChannel] = useState("");
   const { data, error, busy, load } = useCardData(ENDPOINTS.STATISTICS.CHANNEL_JOINS, { range }, reloadKey);
+  useEffect(() => onBusy?.("channels", busy), [busy, onBusy]);
 
   const channels = data?.channels || [];
   const selected = channels.find((c) => String(c.telegram_id) === channel);

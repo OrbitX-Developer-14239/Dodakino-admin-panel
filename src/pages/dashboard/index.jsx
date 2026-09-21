@@ -12,7 +12,8 @@ import client from "../../api/client";
 import { ENDPOINTS } from "../../api/endpoints";
 import AppLink from "../../components/AppLink";
 import { RankChart, TrendChart } from "../../components/charts";
-import { Badge, Card, Empty, ErrorBox, Loading, Meter, PageHead, Stat } from "../../components/ui";
+import { Badge, Button, Card, Empty, ErrorBox, Loading, Meter, PageHead, Stat } from "../../components/ui";
+import { useBusy } from "../../hooks/useBusy";
 import { ago, compact, dayLabel, num } from "../../utils/format";
 
 /**
@@ -27,6 +28,7 @@ export default function Dashboard() {
   const { currentBotId = "", botsLoaded = true } = useOutletContext() || {};
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [refreshing, runRefresh] = useBusy();
 
   const load = useCallback(
     async (silent = false) => {
@@ -90,9 +92,16 @@ export default function Dashboard() {
   return (
     <>
       <PageHead>
-        <button type="button" className="btn ghost sm" onClick={() => load()}>
-          <TbRefresh size={14} /> Yangilash
-        </button>
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={TbRefresh}
+          busy={refreshing}
+          busyText="Yangilanmoqda…"
+          onClick={() => runRefresh(() => load())}
+        >
+          Yangilash
+        </Button>
       </PageHead>
 
       <ErrorBox error={error} onRetry={() => load()} />

@@ -1,3 +1,5 @@
+@use "../../styles/keyframes";
+
 /* ── Card ───────────────────────────────────── */
 .card {
   border: 1px solid var(--color-border-secondary);
@@ -509,4 +511,24 @@
   font-size: var(--font-size-13);
   font-variant-numeric: tabular-nums;
   text-align: center;
+}
+
+/* ── Tugmadagi yuklanish belgisi ──────────────
+   `currentColor` — tugma qaysi variantda bo'lsa, o'sha rangda
+   aylanadi; alohida rang berish shart emas. */
+.spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 1.6s;
+  }
 }

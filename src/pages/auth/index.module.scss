@@ -1,3 +1,5 @@
+@use "../../styles/keyframes";
+
 .wrapper {
   display: flex;
   align-items: center;
@@ -409,4 +411,17 @@
       }
     }
   }
+}
+
+/* Kirish tugmalaridagi yuklanish belgisi — tugma matni rangida */
+.btn_spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 8px;
+  vertical-align: -2px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
 }

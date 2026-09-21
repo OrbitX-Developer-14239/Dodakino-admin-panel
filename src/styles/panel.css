@@ -390,3 +390,20 @@ tbody tr {
 tbody tr:hover {
   background-color: var(--color-bg-hover);
 }
+
+/**
+ * ── Yangilanayotgan blok (.loading-dim) ────────
+ *
+ * Filtr, sahifa yoki "Yangilash" bosilganda eski ma'lumot o'chmaydi —
+ * u biroz xiralashadi va yangisi kelguncha bosilmaydi. Sahifa
+ * "sakramaydi", yuqoridagi yuklanish chizig'i esa ishlatilmaydi: u
+ * faqat sahifaga o'tish uchun.
+ */
+.loading-dim {
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.loading-dim[data-busy] {
+  opacity: 0.55;
+  pointer-events: none;
+}

@@ -1,3 +1,5 @@
+@use "../../styles/keyframes";
+
 /* ── Qidiruv (kartochka sarlavhasida) ─────────
    Jurnaldagi qidiruv maydoni bilan bir xil: ichida lupa belgisi. */
 .search {
@@ -233,4 +235,17 @@
   gap: var(--gap-8);
   flex-wrap: wrap;
   margin-bottom: var(--gap-12);
+}
+
+/* Qidirilayotganda lupa o'rnida aylanuvchi belgi */
+.searchSpinner {
+  position: absolute;
+  left: var(--padding-10);
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--color-text-muted);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  pointer-events: none;
 }

@@ -213,7 +213,8 @@ function Auth() {
               aria-label="Administrator sifatida tizimga kirish"
               disabled={isLoading}
             >
-              {isLoading ? "Kirilmoqda..." : "Kirish"}
+              {isLoading && <span className={styles.btn_spinner} aria-hidden="true" />}
+              {isLoading ? "Kirilmoqda…" : "Kirish"}
             </button>
           </form>
 
@@ -230,7 +231,11 @@ function Auth() {
               onClick={loginWithTelegram}
               disabled={tgState?.status === "starting"}
             >
-              <Asset.Icon name="telegram" className={styles.icon} aria-hidden="true" />
+              {tgState ? (
+                <span className={styles.btn_spinner} aria-hidden="true" />
+              ) : (
+                <Asset.Icon name="telegram" className={styles.icon} aria-hidden="true" />
+              )}
               {tgState?.status === "awaiting"
                 ? "Botda tasdiqlang — kutilmoqda…"
                 : tgState?.status === "starting"

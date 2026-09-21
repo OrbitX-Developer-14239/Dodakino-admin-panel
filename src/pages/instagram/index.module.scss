@@ -1,3 +1,5 @@
+@use "../../styles/keyframes";
+
 /* ── Profil ──────────────────────────────────── */
 .profile {
   display: flex;
@@ -291,4 +293,27 @@
   .preview {
     max-height: 40vh;
   }
+}
+
+/* ── Hikoya yuklash foizi ─────────────────────── */
+.progress {
+  height: 4px;
+  margin: calc(var(--gap-8) * -1) 0 var(--gap-16);
+  overflow: hidden;
+  border-radius: 999px;
+  background-color: var(--color-bg-hover);
+
+  > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background-color: var(--color-accent);
+    transition: width var(--duration-fast) var(--ease-out);
+  }
+}
+
+/* 100% — fayl yetib bordi, endi Instagram uni joylayapti: chiziq
+   "nafas oladi", chunki bu bosqichning aniq foizi yo'q */
+.progressWait {
+  animation: soft-pulse 1.2s ease-in-out infinite;
 }

@@ -3,7 +3,8 @@ import { TbCheck, TbPencil, TbPlus, TbRefresh, TbSpeakerphone, TbTrash, TbUsersG
 import styles from "./index.module.scss";
 import client from "../../api/client";
 import { ENDPOINTS } from "../../api/endpoints";
-import { Badge, Card, Empty, ErrorBox, Loading, Modal, PageHead, Select, Switch } from "../../components/ui";
+import { Badge, Button, Card, Empty, ErrorBox, Loading, Modal, PageHead, Select, Switch } from "../../components/ui";
+import { useBusy } from "../../hooks/useBusy";
 import { num } from "../../utils/format";
 
 const JOIN_TYPES = [
@@ -35,6 +36,10 @@ export default function Channels() {
   // Tahrirlash oynasi (mavjud majburiy kanal uchun)
   const [editingChannel, setEditingChannel] = useState(null);
 
+  const [refreshing, runRefresh] = useBusy();
+  // Qaysi kanal o'chirilmoqda — faqat o'sha qatordagi tugma aylanadi
+  const [removingId, setRemovingId] = useState(null);
+
   const loadChannels = useCallback(async () => {
     try {
       const res = await client.get(ENDPOINTS.CHANNELS.LIST);
@@ -64,18 +69,18 @@ export default function Channels() {
     loadAvailable(true);
   }, [loadChannels, loadAvailable]);
 
-  const afterChange = () => {
-    loadChannels();
-    loadAvailable(false);
-  };
+  const afterChange = () => Promise.all([loadChannels(), loadAvailable(false)]);
 
   const remove = async (channel) => {
     if (!window.confirm("Rostdan ham bu kanalni majburiy obunadan olib tashlamoqchimisiz?")) return;
+    setRemovingId(channel._id);
     try {
       await client.delete(ENDPOINTS.CHANNELS.ITEM(channel._id));
-      afterChange();
+      await afterChange();
     } catch (e) {
       setError(e);
+    } finally {
+      setRemovingId(null);
     }
   };
 
@@ -88,9 +93,16 @@ export default function Channels() {
   return (
     <>
       <PageHead>
-        <button type="button" className="btn ghost sm" onClick={afterChange}>
-          <TbRefresh size={14} /> Yangilash
-        </button>
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={TbRefresh}
+          busy={refreshing}
+          busyText="Yangilanmoqda…"
+          onClick={() => runRefresh(afterChange)}
+        >
+          Yangilash
+        </Button>
       </PageHead>
 
       <ErrorBox error={error} onRetry={loadChannels} />
@@ -137,9 +149,17 @@ export default function Channels() {
                         <button type="button" className="btn ghost sm" onClick={() => setEditingChannel(ch)}>
                           <TbPencil size={13} /> Tahrirlash
                         </button>
-                        <button type="button" className="btn danger sm" onClick={() => remove(ch)}>
-                          <TbTrash size={13} /> Oʻchirish
-                        </button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          icon={TbTrash}
+                          busy={removingId === ch._id}
+                          busyText="Oʻchirilmoqda…"
+                          disabled={Boolean(removingId) && removingId !== ch._id}
+                          onClick={() => remove(ch)}
+                        >
+                          Oʻchirish
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -157,14 +177,16 @@ export default function Channels() {
         title="Bot aʼzo boʻlgan kanal/guruhlar"
         icon={TbUsersGroup}
         actions={
-          <button
-            type="button"
-            className="btn ghost sm"
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={TbRefresh}
+            busy={availableLoading}
+            busyText="Telegramdan tekshirilmoqda…"
             onClick={() => loadAvailable(true)}
-            disabled={availableLoading}
           >
-            <TbRefresh size={14} /> {availableLoading ? "Tekshirilmoqda…" : "Yangilash"}
-          </button>
+            Yangilash
+          </Button>
         }
       >
         <ErrorBox error={availableError} onRetry={() => loadAvailable(true)} />
@@ -176,7 +198,7 @@ export default function Channels() {
             Roʻyxat boʻsh. Botni kanalga admin qilib qoʻshing — u shu yerda oʻzi paydo boʻladi.
           </Empty>
         ) : (
-          <div className={`${styles.rows} anim-stagger`}>
+          <div className={`${styles.rows} anim-stagger loading-dim`} data-busy={availableLoading || undefined}>
             {available.map((chat, i) => {
               const alreadyAdded = chat.already_added || addedIds.has(String(chat.telegram_id));
               return (
@@ -223,6 +245,7 @@ export default function Channels() {
           chat={addingChat}
           initial={EMPTY_FORM}
           submitLabel="Qoʻshish"
+          busyLabel="Qoʻshilmoqda…"
           onClose={() => setAddingChat(null)}
           onSubmit={async (form) => {
             await client.post(ENDPOINTS.CHANNELS.CREATE, { telegram_id: addingChat.telegram_id, ...form });
@@ -255,7 +278,7 @@ export default function Channels() {
 }
 
 /* ── Qo'shish va tahrirlash oynasi (maydonlari bir xil) ───── */
-function ChannelFormModal({ title, chat, initial, submitLabel, onClose, onSubmit }) {
+function ChannelFormModal({ title, chat, initial, submitLabel, busyLabel = "Saqlanmoqda…", onClose, onSubmit }) {
   const [form, setForm] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -285,9 +308,9 @@ function ChannelFormModal({ title, chat, initial, submitLabel, onClose, onSubmit
           <button type="button" className="btn ghost sm" onClick={onClose}>
             Bekor qilish
           </button>
-          <button type="button" className="btn" onClick={submit} disabled={saving}>
-            {saving ? "Saqlanmoqda…" : submitLabel}
-          </button>
+          <Button onClick={submit} busy={saving} busyText={busyLabel}>
+            {submitLabel}
+          </Button>
         </>
       }
     >

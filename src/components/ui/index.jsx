@@ -284,3 +284,39 @@ export function Pagination({ page = 1, totalPages = 1, onChange }) {
     </nav>
   );
 }
+
+/* ── Tugma (yuklanish holati bilan) ───────────
+   `busy` bo'lganda ichida aylanuvchi belgi chiqadi va yozuv
+   bajarilayotgan ishni aytadi ("Saqlanmoqda…"). Tugma o'sha payt
+   bosilmaydi — ikki marta yuborilib, film ikki marta yaratilmasin.
+   Kengligi o'zgarmasligi uchun belgi yozuvning o'rniga emas, oldiga
+   qo'yiladi. */
+export function Button({
+  busy = false,
+  busyText,
+  variant = "",
+  size = "",
+  icon: Icon,
+  className = "",
+  disabled,
+  children,
+  type = "button",
+  ...props
+}) {
+  return (
+    <button
+      type={type}
+      className={`btn ${variant} ${size} ${className}`.replace(/\s+/g, " ").trim()}
+      disabled={disabled || busy}
+      aria-busy={busy || undefined}
+      {...props}
+    >
+      {busy ? (
+        <span className={styles.spinner} aria-hidden="true" />
+      ) : (
+        Icon && <Icon size={size === "sm" ? 13 : 14} />
+      )}
+      {busy && busyText ? busyText : children}
+    </button>
+  );
+}

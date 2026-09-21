@@ -14,7 +14,8 @@ import styles from "./index.module.scss";
 import client from "../../api/client";
 import { ENDPOINTS } from "../../api/endpoints";
 import { streamLogs } from "../../api/logStream";
-import { Badge, Card, Empty, ErrorBox, PageHead, Select } from "../../components/ui";
+import { Badge, Button, Card, Empty, ErrorBox, PageHead, Select } from "../../components/ui";
+import { useBusy } from "../../hooks/useBusy";
 import { num } from "../../utils/format";
 
 /**
@@ -71,6 +72,9 @@ export default function Logs() {
 
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  // Filtr almashganda jurnal xiralashadi; "Yangilash" tugmasi o'zi aylanadi
+  const [listBusy, setListBusy] = useState(false);
+  const [refreshing, runRefresh] = useBusy();
 
   const boxRef = useRef(null);
   const pinnedRef = useRef(true); // pastga "yopishib" turibdimi
@@ -89,6 +93,7 @@ export default function Logs() {
   const load = useCallback(async () => {
     if (!ready) return;
     const id = ++requestId.current;
+    setListBusy(true);
     try {
       const params = { time: hours, limit: LIMIT };
       if (level) params.level = levelsFrom(level).join(",");
@@ -104,6 +109,8 @@ export default function Logs() {
       setError(null);
     } catch (e) {
       if (id === requestId.current) setError(e);
+    } finally {
+      if (id === requestId.current) setListBusy(false);
     }
   }, [ready, hours, level, botParam, query]);
 
@@ -174,9 +181,16 @@ export default function Logs() {
           {live ? <TbPlayerPause size={14} /> : <TbPlayerPlay size={14} />}
           {live ? "Jonli" : "Toʻxtatilgan"}
         </button>
-        <button type="button" className="btn ghost sm" onClick={() => load()}>
-          <TbRefresh size={14} /> Yangilash
-        </button>
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={TbRefresh}
+          busy={refreshing}
+          busyText="Yangilanmoqda…"
+          onClick={() => runRefresh(load)}
+        >
+          Yangilash
+        </Button>
       </PageHead>
 
       <ErrorBox error={error} onRetry={() => load()} />
@@ -252,8 +266,8 @@ export default function Logs() {
 
         <div className={styles.summary}>
           <span>
-            {num(result?.total)} ta qator
-            {result?.truncated ? ` · oxirgi ${num(items.length)} tasi koʻrsatilmoqda` : ""}
+            {listBusy ? "Yuklanmoqda…" : `${num(result?.total)} ta qator`}
+            {!listBusy && result?.truncated ? ` · oxirgi ${num(items.length)} tasi koʻrsatilmoqda` : ""}
           </span>
           {counts.warn > 0 && <Badge tone="warn">{counts.warn} ogohlantirish</Badge>}
           {counts.error > 0 && <Badge tone="danger">{counts.error} xato</Badge>}
@@ -276,7 +290,12 @@ export default function Logs() {
       {/* ── Jurnal ──────────────────────────────────────────────── */}
       <Card title="Jurnal" icon={TbFileAnalytics} actions={live ? <Badge tone="info" pulse>jonli</Badge> : null}>
         {items.length ? (
-          <div className={`${styles.logs} ${hasOlder ? styles.withDate : ""}`} ref={boxRef} onScroll={onScroll}>
+          <div
+            className={`${styles.logs} ${hasOlder ? styles.withDate : ""} loading-dim`}
+            data-busy={listBusy || undefined}
+            ref={boxRef}
+            onScroll={onScroll}
+          >
             {items.map((l, i) => (
               <div
                 key={`${l._id || l.timestamp}-${i}`}

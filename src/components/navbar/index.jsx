@@ -7,7 +7,8 @@ import theme from "@theme";
 import AdminService from "../../api/services/authService";
 import { setSelectedBotId } from "../../api/botContext";
 import { findRouteByPath } from "../../router/routes";
-import { Select } from "../ui";
+import { Button, Select } from "../ui";
+import { useBusy } from "../../hooks/useBusy";
 
 /*
  * ⏸ KEYINGA QOLDIRILGAN — UCH HOLATLI MAVZU TUGMASI (tizim / yorug' / qorong'i).
@@ -54,6 +55,7 @@ function Navbar({ bots = [], currentBotId = "" }) {
     AdminService.me().then(setAdmin).catch(() => {});
   }, []);
 
+  const [loggingOut, runLogout] = useBusy();
   const logout = async () => {
     await AdminService.logout();
     navigate("/auth", { replace: true });
@@ -123,15 +125,17 @@ function Navbar({ bots = [], currentBotId = "" }) {
           </button>
           */}
 
-          <button
-            type="button"
-            className={`btn ghost sm ${styles.iconBtn}`}
-            onClick={logout}
+          <Button
+            variant="ghost"
+            size="sm"
+            className={styles.iconBtn}
+            busy={loggingOut}
+            onClick={() => runLogout(logout)}
             title={admin?.username ? `${admin.username} — chiqish` : "Chiqish"}
-            aria-label="Chiqish"
+            aria-label={loggingOut ? "Chiqilmoqda" : "Chiqish"}
           >
-            <TbLogout size={15} />
-          </button>
+            {!loggingOut && <TbLogout size={15} />}
+          </Button>
         </div>
       </div>
     </header>
