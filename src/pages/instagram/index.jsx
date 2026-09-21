@@ -57,6 +57,9 @@ export default function Instagram() {
   // "eng yaxshi" bo'yicha tartiblangan, yangi post esa hali 0 ball bilan
   // oxiriga tushib, admin uni ko'rmay qolardi.
   const [fresh, setFresh] = useState([]);
+  // Instagram o'chirganini tasdiqlagan post/hikoyalar — ro'yxat qayta
+  // yuklanishini kutmay darhol yashiriladi
+  const [removed, setRemoved] = useState([]);
 
   const load = useCallback(async (silent = false) => {
     const get = (url) => client.get(url, { silent }).then((r) => r?.data);
@@ -81,8 +84,10 @@ export default function Instagram() {
   const serverPosts = data?.posts?.allMedia || [];
   // Server nusxasi kelgach u ishlatiladi (haqiqiy rasm va statistika), lekin joyi boshida qoladi
   const pinned = fresh.map((f) => serverPosts.find((s) => s.id === f.id) || f);
-  const posts = [...pinned, ...serverPosts.filter((s) => !fresh.some((f) => f.id === s.id))];
-  const stories = Array.isArray(data?.stories) ? data.stories : [];
+  const posts = [...pinned, ...serverPosts.filter((s) => !fresh.some((f) => f.id === s.id))].filter(
+    (m) => !removed.includes(m.id)
+  );
+  const stories = (Array.isArray(data?.stories) ? data.stories : []).filter((m) => !removed.includes(m.id));
 
   const growthData = (data?.growth?.labels || []).map((label, i) => ({
     label,
@@ -226,9 +231,9 @@ export default function Instagram() {
           {...openMedia}
           onClose={() => setOpenMedia(null)}
           onDeleted={() => {
-            setFresh((list) => list.filter((f) => f.id !== openMedia.item.id));
+            setRemoved((ids) => [...ids, openMedia.item.id]);
             setOpenMedia(null);
-            load();
+            load(true);
           }}
         />
       )}
