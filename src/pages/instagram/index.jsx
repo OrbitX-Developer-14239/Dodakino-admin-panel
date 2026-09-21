@@ -53,6 +53,10 @@ export default function Instagram() {
   const [openMedia, setOpenMedia] = useState(null); // { kind: "post"|"story", item }
   const [refreshing, runRefresh] = useBusy();
   const [composing, setComposing] = useState(false);
+  // Shu sessiyada joylangan postlar — ro'yxat boshida turadi. Server ro'yxati
+  // "eng yaxshi" bo'yicha tartiblangan, yangi post esa hali 0 ball bilan
+  // oxiriga tushib, admin uni ko'rmay qolardi.
+  const [fresh, setFresh] = useState([]);
 
   const load = useCallback(async (silent = false) => {
     const get = (url) => client.get(url, { silent }).then((r) => r?.data);
@@ -74,7 +78,10 @@ export default function Instagram() {
   if (!data && !error) return <Loading rows={5} />;
 
   const p = data?.profile;
-  const posts = data?.posts?.allMedia || [];
+  const serverPosts = data?.posts?.allMedia || [];
+  // Server nusxasi kelgach u ishlatiladi (haqiqiy rasm va statistika), lekin joyi boshida qoladi
+  const pinned = fresh.map((f) => serverPosts.find((s) => s.id === f.id) || f);
+  const posts = [...pinned, ...serverPosts.filter((s) => !fresh.some((f) => f.id === s.id))];
   const stories = Array.isArray(data?.stories) ? data.stories : [];
 
   const growthData = (data?.growth?.labels || []).map((label, i) => ({
@@ -206,9 +213,10 @@ export default function Instagram() {
       {composing && (
         <NewPostModal
           onClose={() => setComposing(false)}
-          onPublished={() => {
+          onPublished={(post) => {
             setComposing(false);
-            load();
+            setFresh((list) => [post, ...list]);
+            load(true);
           }}
         />
       )}
@@ -218,6 +226,7 @@ export default function Instagram() {
           {...openMedia}
           onClose={() => setOpenMedia(null)}
           onDeleted={() => {
+            setFresh((list) => list.filter((f) => f.id !== openMedia.item.id));
             setOpenMedia(null);
             load();
           }}
@@ -356,8 +365,24 @@ function NewPostModal({ onClose, onPublished }) {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
   const fileRef = useRef(null);
+  const videoRef = useRef(null);
 
   const isVideo = file?.type?.startsWith("video/");
+
+  // Video uchun ro'yxatdagi muqova — oyna ko'rsatib turgan kadr
+  const videoFrame = () => {
+    const v = videoRef.current;
+    if (!v?.videoWidth) return null;
+    try {
+      const c = document.createElement("canvas");
+      c.width = v.videoWidth;
+      c.height = v.videoHeight;
+      c.getContext("2d").drawImage(v, 0, 0);
+      return c.toDataURL("image/jpeg", 0.8);
+    } catch {
+      return null;
+    }
+  };
 
   // Tanlangan fayl ko'rinishi — eski havola xotiradan bo'shatiladi
   useEffect(() => {
@@ -386,13 +411,28 @@ function NewPostModal({ onClose, onPublished }) {
       const fd = new FormData();
       fd.append("media", file);
       if (caption.trim()) fd.append("caption", caption.trim());
-      await client.post(ENDPOINTS.INSTAGRAM.POSTS, fd, {
+      const res = await client.post(ENDPOINTS.INSTAGRAM.POSTS, fd, {
         timeout: 330000, // Reels qayta ishlanishi — 5 daqiqagacha
         onUploadProgress: (e) => {
           if (e.total) setProgress(Math.min(100, Math.round((e.loaded / e.total) * 100)));
         },
       });
-      onPublished?.();
+      // Ro'yxatga darhol qo'yiladigan post — Instagram ma'lumoti kelguncha
+      // lokal fayldan. Oyna yopilganda preview havolasi bo'shatiladi,
+      // shuning uchun alohida havola ochiladi.
+      const mediaUrl = URL.createObjectURL(file);
+      onPublished?.({
+        id: res?.data?.id || `local-${Date.now()}`,
+        caption: caption.trim(),
+        type: isVideo ? "VIDEO" : "IMAGE",
+        productType: isVideo ? "REELS" : "FEED",
+        mediaUrl,
+        thumbnail: isVideo ? videoFrame() : mediaUrl,
+        likes: 0,
+        comments: 0,
+        views: 0,
+        timestamp: new Date().toISOString(),
+      });
     } catch (e) {
       setError(e);
     } finally {
@@ -438,7 +478,7 @@ function NewPostModal({ onClose, onPublished }) {
           aria-label="Rasm yoki video tanlash"
         >
           {preview ? (
-            isVideo ? <video src={preview} muted controls playsInline /> : <img src={preview} alt="" />
+            isVideo ? <video ref={videoRef} src={preview} muted controls playsInline /> : <img src={preview} alt="" />
           ) : (
             <span className={styles.pickerEmpty}>
               <TbPlus size={24} />
