@@ -201,6 +201,7 @@ export default function Films() {
                   <th className="num">Yil</th>
                   <th className="num">Qismlar</th>
                   <th className="num">Koʻrishlar</th>
+                  <th className="num">Qism koʻrishlari</th>
                 </tr>
               </thead>
               <tbody>
@@ -220,6 +221,7 @@ export default function Films() {
                     <td className="num">{f.year || "—"}</td>
                     <td className="num">{f.episodesCount ?? "—"}</td>
                     <td className="num">{f.views != null ? compact(f.views) : "—"}</td>
+                    <td className="num">{f.episodeViews != null ? compact(f.episodeViews) : "—"}</td>
                   </tr>
                 ))}
               </tbody>

@@ -12,7 +12,7 @@ import client from "../../api/client";
 import { ENDPOINTS } from "../../api/endpoints";
 import AppLink from "../../components/AppLink";
 import { RankChart, TrendChart } from "../../components/charts";
-import { Badge, Button, Card, Empty, ErrorBox, Loading, Meter, PageHead, Stat } from "../../components/ui";
+import { Badge, Button, Card, Empty, ErrorBox, Loading, Meter, PageHead, Stat, StatRow } from "../../components/ui";
 import { useBusy } from "../../hooks/useBusy";
 import { ago, compact, dayLabel, num } from "../../utils/format";
 
@@ -79,7 +79,8 @@ export default function Dashboard() {
   const growthTotals = data?.growth?.totals;
   const newIn30 = (data?.growth?.points || []).reduce((s, p) => s + (p.newStarted || 0), 0);
   const topFilms = Array.isArray(data?.top) ? data.top : [];
-  const totalViews = topFilms.reduce((s, f) => s + (f.views || 0), 0);
+  // Eng ko'p ko'rilgani — ro'yxat tartibiga ishonmasdan o'zimiz tanlaymiz
+  const topFilm = topFilms.reduce((best, f) => ((f.views || 0) > (best?.views || 0) ? f : best), null);
   const channels = data?.channels?.channels || [];
   const errors = Array.isArray(data?.errors) ? data.errors : [];
 
@@ -115,15 +116,22 @@ export default function Dashboard() {
           sub={`+${num(newIn30)} soʻnggi 30 kunda`}
           tone="ok"
         />
+        {channels.length ? (
+          <Stat label="Obunachilar" sub="har kanalga aʼzo boʻlganlar">
+            {channels.slice(0, 4).map((c) => (
+              <StatRow key={c.telegram_id} label={c.name} value={num(c.members)} />
+            ))}
+            {channels.length > 4 && (
+              <StatRow label="boshqa kanallar" value={`+${num(channels.length - 4)}`} />
+            )}
+          </Stat>
+        ) : (
+          <Stat label="Obunachilar" value={num(counts?.subscribed)} sub="majburiy kanal yoʻq" />
+        )}
         <Stat
-          label="Obunachilar"
-          value={num(counts?.subscribed)}
-          sub="barcha majburiy kanallarga aʼzo"
-        />
-        <Stat
-          label="Koʻrishlar"
-          value={compact(totalViews)}
-          sub="barcha filmlar boʻyicha"
+          label="Eng koʻp koʻrilgan"
+          value={compact(topFilm?.views)}
+          sub={topFilm?.name || "hali koʻrish yoʻq"}
           tone="warn"
         />
       </div>
