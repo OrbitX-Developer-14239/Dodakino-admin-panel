@@ -34,20 +34,9 @@ export function Card({ title, icon: Icon, actions, children, className = "" }) {
    Bitta raqam + izoh + o'zgarish. `trend` — kechagi kunga nisbatan
    foiz; u BO'LMASA umuman ko'rsatilmaydi. "0%" bilan "ma'lumot yo'q"
    bir xil ko'rinmasligi kerak. */
-export function Stat({ label, value, sub, tone = "", trend, children }) {
+export function Stat({ label, value, sub, tone = "", trend }) {
   const t = fmtTrend(trend);
   const up = Number(trend) > 0;
-
-  // Bitta katta son o'rniga bir nechta qator — masalan har kanal alohida
-  if (children) {
-    return (
-      <div className={`${styles.stat} ${tone ? styles[`tone_${tone}`] : ""}`}>
-        <p className={styles.statLabel}>{label}</p>
-        <div className={styles.statRows}>{children}</div>
-        {sub && <p className={styles.statSub}>{sub}</p>}
-      </div>
-    );
-  }
 
   return (
     <div className={`${styles.stat} ${tone ? styles[`tone_${tone}`] : ""}`}>
@@ -63,16 +52,6 @@ export function Stat({ label, value, sub, tone = "", trend, children }) {
       </p>
       {sub && <p className={styles.statSub}>{sub}</p>}
     </div>
-  );
-}
-
-/** Ko'p qatorli Stat ichidagi bitta qator */
-export function StatRow({ label, value }) {
-  return (
-    <p className={styles.statRow}>
-      <span>{label}</span>
-      <span>{value}</span>
-    </p>
   );
 }
 

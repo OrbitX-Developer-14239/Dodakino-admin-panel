@@ -12,7 +12,7 @@ import client from "../../api/client";
 import { ENDPOINTS } from "../../api/endpoints";
 import AppLink from "../../components/AppLink";
 import { RankChart, TrendChart } from "../../components/charts";
-import { Badge, Button, Card, Empty, ErrorBox, Loading, Meter, PageHead, Stat, StatRow } from "../../components/ui";
+import { Badge, Button, Card, Empty, ErrorBox, Loading, Meter, PageHead, Stat } from "../../components/ui";
 import { useBusy } from "../../hooks/useBusy";
 import { ago, compact, dayLabel, num } from "../../utils/format";
 
@@ -108,7 +108,9 @@ export default function Dashboard() {
       <ErrorBox error={error} onRetry={() => load()} />
 
       {/* ── Asosiy ko'rsatkichlar ─────────────────────────────── */}
-      <div className="grid c4">
+      {/* Obunachilar bu yerda emas: har kanalning a'zolari pastdagi
+          "Majburiy kanallar" kartochkasida batafsil ko'rinadi. */}
+      <div className="grid c3">
         <Stat label="Filmlar" value={num(totalFilms)} sub="katalogdagi kinolar" tone="info" />
         <Stat
           label="Foydalanuvchilar"
@@ -116,18 +118,6 @@ export default function Dashboard() {
           sub={`+${num(newIn30)} soʻnggi 30 kunda`}
           tone="ok"
         />
-        {channels.length ? (
-          <Stat label="Obunachilar" sub="har kanalga aʼzo boʻlganlar">
-            {channels.slice(0, 4).map((c) => (
-              <StatRow key={c.telegram_id} label={c.name} value={num(c.members)} />
-            ))}
-            {channels.length > 4 && (
-              <StatRow label="boshqa kanallar" value={`+${num(channels.length - 4)}`} />
-            )}
-          </Stat>
-        ) : (
-          <Stat label="Obunachilar" value={num(counts?.subscribed)} sub="majburiy kanal yoʻq" />
-        )}
         <Stat
           label="Eng koʻp koʻrilgan"
           value={compact(topFilm?.views)}
