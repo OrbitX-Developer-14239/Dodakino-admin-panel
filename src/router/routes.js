@@ -8,6 +8,7 @@ import {
   TbSpeakerphone,
   TbUsers,
   TbBrandInstagram,
+  TbSettings,
 } from "react-icons/tb";
 
 /**
@@ -48,6 +49,7 @@ const FilmsPage = lazyWithPreload(() => import("../pages/films/index"));
 const ChannelsPage = lazyWithPreload(() => import("../pages/channels/index"));
 const UsersPage = lazyWithPreload(() => import("../pages/users/index"));
 const InstagramPage = lazyWithPreload(() => import("../pages/instagram/index"));
+const SettingsPage = lazyWithPreload(() => import("../pages/settings/index"));
 const AuthPage = lazyWithPreload(() => import("../pages/auth/index"));
 const NotFoundPage = lazyWithPreload(() => import("../pages/notFound/index"));
 
@@ -175,6 +177,17 @@ export const routes = [
     private: true,
     standalone: false,
     nav: { label: "Instagram", icon: TbBrandInstagram, group: "Auditoriya" },
+  },
+
+  // ─── Tizim ───────────────────────────────────────────────────
+  {
+    title: "Sozlamalar | TROYA ADMIN",
+    description: "Profil, Telegram ulash, login va parol, adminlar boshqaruvi.",
+    path: "/settings",
+    Component: SettingsPage,
+    private: true,
+    standalone: false,
+    nav: { label: "Sozlamalar", icon: TbSettings, group: "Tizim" },
   },
 
   // ─── Sinov sahifasi — FAQAT dev'da ───────────────────────────

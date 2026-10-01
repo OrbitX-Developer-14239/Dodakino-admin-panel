@@ -20,6 +20,14 @@ export const ENDPOINTS = {
     ME: "/admin/me",
     TELEGRAM_LOGIN_INIT: "/admin/telegram-login/init",
     TELEGRAM_AUTH: "/admin/telegram-auth",
+    /** Kirgan adminning Telegram akkauntini ulash (bot havolasi + socket) */
+    TELEGRAM_LINK_INIT: "/admin/telegram-link/init",
+    /** Adminlar boshqaruvi — faqat superadmin */
+    ALL: "/admin/all",
+    CREATE: "/admin/create",
+    /** O'z profilini istalgan admin, boshqanikini faqat superadmin */
+    UPDATE: (id) => `/admin/${id}`,
+    DELETE: (id) => `/admin/${id}`,
   },
 
   // ─── Server holati (API ildizidan tashqarida) ─────────────────

@@ -1,0 +1,176 @@
+@use "../../styles/keyframes";
+
+/* ── Profil qatorlari ───────────────────────── */
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 0 var(--gap-16);
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--gap-12);
+  padding: var(--padding-6) 0;
+  border-bottom: 1px solid var(--color-border-secondary);
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  dt {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-13);
+  }
+
+  dd {
+    margin: 0;
+    color: var(--color-text-primary);
+    font-size: var(--font-size-14);
+    font-weight: 600;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* ── Telegram bloki ─────────────────────────── */
+.telegram {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gap-12);
+  padding: var(--gap-12);
+  border: 1px solid var(--color-border-secondary);
+  border-radius: var(--border-radius-12);
+  background-color: var(--color-bg-secondary);
+}
+
+.tgIcon {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--border-radius-circle);
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-muted);
+}
+
+.tgOn {
+  background-color: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.tgText {
+  display: flex;
+  flex: 1 1 160px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+
+  strong {
+    color: var(--color-text-primary);
+    font-size: var(--font-size-14);
+    overflow-wrap: anywhere;
+  }
+}
+
+/* ── Telegram ulash oynasi ──────────────────── */
+.linkSteps {
+  ol {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-8);
+    margin: 0 0 var(--gap-16);
+    padding-left: 20px;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-14);
+    line-height: 1.5;
+  }
+
+  b {
+    color: var(--color-text-primary);
+  }
+}
+
+.waiting {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-8);
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-13);
+}
+
+.dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--border-radius-circle);
+  background-color: var(--color-accent);
+  animation: soft-pulse 1.4s ease-in-out infinite;
+}
+
+.success {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-8);
+  margin: 0 0 var(--gap-8);
+  color: var(--color-ok);
+  font-size: var(--font-size-14);
+  font-weight: 600;
+}
+
+/* ── Login va parol ─────────────────────────── */
+.saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-ok);
+  font-size: var(--font-size-13);
+}
+
+.danger {
+  color: var(--color-danger-text) !important;
+}
+
+/* ── Adminlar jadvali ───────────────────────── */
+.adminName {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.adminSub {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-12);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--gap-6);
+}
+
+/* ── Yaratilgan admin havolasi ──────────────── */
+.created {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-10);
+}
+
+.copyRow {
+  display: flex;
+  gap: var(--gap-8);
+
+  input {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-family: var(--font-mono, monospace);
+    font-size: var(--font-size-12);
+  }
+}
