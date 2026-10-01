@@ -497,6 +497,60 @@ function mergeCollabs(list, raw) {
  * Oyna shu vaqt yopilmaydi: yopilsa ham post baribir chiqib ketardi va
  * admin natijasini bilmay qolardi.
  */
+const SOURCE_LABEL = {
+  collab: "avvalgi hammuallif",
+  invite: "sizga collab taklif yuborgan",
+  comment: "postingizga izoh yozgan",
+};
+
+/**
+ * Hammuallif yozilayotganda mos akkauntlar.
+ *
+ * Instagram API da erkin qidiruv yo'q: aniq username (biznes/kreator
+ * akkaunt — rasm va obunachilar bilan) hamda biz bilan aloqada
+ * bo'lganlar ichidan moslari keladi. Topilmasa ham yozilgan username
+ * taklif qilinadi — shaxsiy ommaviy akkaunt ham hammuallif bo'la oladi.
+ *
+ * Yozish to'xtagach 350 ms kutiladi, eskirgan javob e'tiborsiz qoldiriladi.
+ */
+function useCollabSuggest(input, exclude) {
+  const [state, setState] = useState({ q: "", exact: null, known: [], loading: false });
+  const q = String(input).trim().replace(/^@+/, "").toLowerCase();
+  const valid = q.length >= 2 && USERNAME_RE.test(q);
+
+  useEffect(() => {
+    if (!valid) {
+      setState({ q: "", exact: null, known: [], loading: false });
+      return undefined;
+    }
+    let alive = true;
+    setState((s) => ({ ...s, loading: true }));
+    const timer = setTimeout(() => {
+      client
+        .get(ENDPOINTS.INSTAGRAM.ACCOUNT_SEARCH, { params: { q }, silent: true })
+        .then((r) => alive && setState({ q, exact: r?.data?.exact || null, known: r?.data?.known || [], loading: false }))
+        .catch(() => alive && setState({ q, exact: null, known: [], loading: false }));
+    }, 350);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [q, valid]);
+
+  if (!valid) return { options: [], loading: false };
+
+  const current = state.q === q; // javob hozirgi matnga tegishlimi
+  const options = [];
+  if (current && state.exact) options.push({ kind: "exact", ...state.exact });
+  if (current) state.known.forEach((k) => options.push({ kind: "known", ...k }));
+  if (current && !state.exact && !state.loading) options.push({ kind: "manual", username: q });
+
+  return {
+    options: options.filter((o) => !exclude.includes(o.username)),
+    loading: state.loading || !current,
+  };
+}
+
 function NewPostModal({ onClose, onPublished }) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -518,7 +572,37 @@ function NewPostModal({ onClose, onPublished }) {
     return { list, err };
   };
 
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [hi, setHi] = useState(0); // klaviatura bilan tanlangan qator
+  const { options: suggestions, loading: suggesting } = useCollabSuggest(collabInput, collabs);
+  const showSuggest =
+    suggestOpen && !busy && collabs.length < COLLAB_MAX && (suggestions.length > 0 || suggesting);
+
+  const pickSuggestion = (o) => {
+    addCollabs(o.username);
+    setSuggestOpen(false);
+    setHi(0);
+  };
+
   const onCollabKey = (e) => {
+    if (showSuggest && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      e.preventDefault();
+      const last = Math.max(0, suggestions.length - 1);
+      setHi((h) => (e.key === "ArrowDown" ? Math.min(h + 1, last) : Math.max(h - 1, 0)));
+      return;
+    }
+    if (showSuggest && e.key === "Escape") {
+      // Faqat ro'yxat yopiladi — oyna emas
+      e.preventDefault();
+      e.nativeEvent.stopPropagation();
+      setSuggestOpen(false);
+      return;
+    }
+    if (showSuggest && e.key === "Enter" && suggestions[hi]) {
+      e.preventDefault();
+      pickSuggestion(suggestions[hi]);
+      return;
+    }
     if (e.key === "Enter" || e.key === "," || e.key === " ") {
       e.preventDefault();
       if (collabInput.trim()) addCollabs(collabInput);
@@ -703,16 +787,57 @@ function NewPostModal({ onClose, onPublished }) {
                   onChange={(e) => {
                     setCollabInput(e.target.value);
                     setCollabError(null);
+                    setSuggestOpen(true);
+                    setHi(0);
                   }}
                   onKeyDown={onCollabKey}
-                  onBlur={() => collabInput.trim() && addCollabs(collabInput)}
-                  placeholder={collabs.length ? "yana username…" : "username, Enter bilan qoʻshing"}
+                  // Yozilgan matn yorliqqa aylanmaydi — "Joylash" bosilganda baribir hisobga olinadi
+                  onBlur={() => setSuggestOpen(false)}
+                  onFocus={() => setSuggestOpen(true)}
+                  placeholder={collabs.length ? "yana username…" : "username yozing…"}
                   disabled={busy}
                   autoComplete="off"
                   spellCheck={false}
+                  role="combobox"
+                  aria-controls="collab-suggest"
+                  aria-expanded={showSuggest}
+                  aria-autocomplete="list"
                 />
               )}
             </div>
+
+            {showSuggest && (
+              <div id="collab-suggest" className={styles.suggest} role="listbox">
+                {suggestions.map((o, i) => (
+                  <button
+                    key={`${o.kind}-${o.username}`}
+                    type="button"
+                    role="option"
+                    aria-selected={i === hi}
+                    className={`${styles.suggestItem} ${i === hi ? styles.suggestActive : ""}`}
+                    // Bosilganda maydon fokusni yo'qotmasin (aks holda ro'yxat yopilib, bosish o'tmaydi)
+                    onMouseDown={(e) => e.preventDefault()}
+                    onMouseEnter={() => setHi(i)}
+                    onClick={() => pickSuggestion(o)}
+                  >
+                    <span className={styles.suggestAvatar}>
+                      {o.picture ? <img src={o.picture} alt="" /> : o.username[0].toUpperCase()}
+                    </span>
+                    <span className={styles.suggestText}>
+                      <strong>@{o.username}</strong>
+                      <small>
+                        {o.kind === "exact"
+                          ? [o.name, o.followers != null ? `${compact(o.followers)} obunachi` : null].filter(Boolean).join(" · ")
+                          : o.kind === "known"
+                            ? SOURCE_LABEL[o.source] || "aloqada boʻlgan"
+                            : "Biznes akkaunt sifatida topilmadi — shaxsiy boʻlsa ham qoʻshish mumkin"}
+                      </small>
+                    </span>
+                  </button>
+                ))}
+                {suggesting && <div className={styles.suggestHint}>Qidirilmoqda…</div>}
+              </div>
+            )}
             <small className={collabError ? styles.collabError : undefined}>
               {collabError ||
                 `${COLLAB_MAX} tagacha ommaviy akkaunt · ularga Instagramda taklif boradi, qabul qilgach post ularning profilida ham chiqadi`}

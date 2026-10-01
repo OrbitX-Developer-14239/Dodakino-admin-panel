@@ -92,6 +92,8 @@ export const ENDPOINTS = {
     MEDIA: (id) => `/instagram/media/${id}`,
     /** Postning hammualliflari va ularning javobi */
     COLLABORATORS: (id) => `/instagram/media/${id}/collaborators`,
+    /** Hammuallif yozilayotganda mos akkauntlar (?q=) */
+    ACCOUNT_SEARCH: "/instagram/accounts/search",
     /** Bizni hammuallif qilib chaqirgan postlar */
     COLLAB_INVITES: "/instagram/collab-invites",
     /** Taklifga javob (POST { accept }) — qaytarilmaydi */

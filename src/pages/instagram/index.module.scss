@@ -452,6 +452,87 @@
   }
 }
 
+/* Hammuallif takliflari — maydon ostida, oqimda (oyna chetida kesilib qolmaydi) */
+.suggest {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+  padding: 4px;
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--border-radius-8);
+  background-color: var(--color-bg-surface);
+  animation: fade-in var(--duration-fast) var(--ease-out);
+}
+
+.suggestItem {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-10);
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--border-radius-6);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover,
+  &.suggestActive {
+    background-color: var(--color-bg-hover);
+  }
+}
+
+.suggestAvatar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  overflow: hidden;
+  border-radius: var(--border-radius-circle);
+  background-color: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: var(--font-size-13);
+  font-weight: 600;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.suggestText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
+  strong {
+    overflow: hidden;
+    color: var(--color-text-primary);
+    font-size: var(--font-size-13);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  small {
+    overflow: hidden;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-12);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.suggestHint {
+  padding: 6px 8px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-12);
+}
+
 .collabError {
   color: var(--color-danger-text);
 }
