@@ -398,3 +398,126 @@
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* ── Hammualliflar (collab) ──────────────────── */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gap-6);
+  padding: var(--gap-6);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--border-radius-8);
+  background-color: var(--color-bg-secondary);
+
+  &:focus-within {
+    border-color: var(--color-accent);
+  }
+
+  input {
+    flex: 1 1 120px;
+    min-width: 0;
+    padding: 4px 6px;
+    border: none;
+    outline: none;
+    background: none;
+    color: var(--color-text-primary);
+    font: inherit;
+  }
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 2px 8px;
+  border-radius: var(--border-radius-circle);
+  background-color: var(--color-accent-soft);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-13);
+
+  button {
+    display: inline-flex;
+    padding: 2px;
+    border: none;
+    border-radius: var(--border-radius-circle);
+    background: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+
+    &:hover {
+      background-color: var(--color-bg-hover);
+      color: var(--color-text-primary);
+    }
+  }
+}
+
+.collabError {
+  color: var(--color-danger-text);
+}
+
+.invites {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-10);
+}
+
+.invite {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  gap: var(--gap-12);
+  align-items: center;
+  padding: var(--gap-10);
+  border: 1px solid var(--color-border-secondary);
+  border-radius: var(--border-radius-12);
+
+  @media (max-width: 640px) {
+    grid-template-columns: 56px minmax(0, 1fr);
+
+    .inviteActions {
+      grid-column: 1 / -1;
+      justify-content: flex-end;
+    }
+  }
+}
+
+.inviteThumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--border-radius-8);
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-muted);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.inviteText {
+  min-width: 0;
+
+  strong {
+    color: var(--color-text-primary);
+    font-size: var(--font-size-14);
+  }
+
+  p {
+    display: -webkit-box;
+    margin: 2px 0 0;
+    overflow: hidden;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-13);
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+}
+
+.inviteActions {
+  display: flex;
+  gap: var(--gap-8);
+}

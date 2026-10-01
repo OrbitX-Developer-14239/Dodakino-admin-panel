@@ -82,5 +82,11 @@ export const ENDPOINTS = {
     STORIES: "/instagram/stories",
     /** Post, Reels yoki hikoyani o'chirish (DELETE) — qaytarilmaydi */
     MEDIA: (id) => `/instagram/media/${id}`,
+    /** Postning hammualliflari va ularning javobi */
+    COLLABORATORS: (id) => `/instagram/media/${id}/collaborators`,
+    /** Bizni hammuallif qilib chaqirgan postlar */
+    COLLAB_INVITES: "/instagram/collab-invites",
+    /** Taklifga javob (POST { accept }) — qaytarilmaydi */
+    COLLAB_INVITE: (mediaId) => `/instagram/collab-invites/${mediaId}`,
   },
 };

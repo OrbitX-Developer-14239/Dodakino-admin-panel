@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   TbBrandInstagram,
   TbChartLine,
+  TbCheck,
   TbExternalLink,
   TbHeart,
   TbMessageCircle,
@@ -11,6 +12,8 @@ import {
   TbPlus,
   TbStars,
   TbTrash,
+  TbUsers,
+  TbX,
 } from "react-icons/tb";
 import styles from "./index.module.scss";
 import client from "../../api/client";
@@ -63,14 +66,22 @@ export default function Instagram() {
 
   const load = useCallback(async (silent = false) => {
     const get = (url) => client.get(url, { silent }).then((r) => r?.data);
-    const [profile, growth, posts, stories] = await Promise.allSettled([
+    const [profile, growth, posts, stories, invites] = await Promise.allSettled([
       get(ENDPOINTS.INSTAGRAM.PROFILE),
       get(ENDPOINTS.INSTAGRAM.GROWTH),
       get(ENDPOINTS.INSTAGRAM.POSTS),
       get(ENDPOINTS.INSTAGRAM.STORIES),
+      get(ENDPOINTS.INSTAGRAM.COLLAB_INVITES),
     ]);
     const val = (r) => (r.status === "fulfilled" ? r.value : null);
-    setData({ profile: val(profile), growth: val(growth), posts: val(posts), stories: val(stories) });
+    setData({
+      profile: val(profile),
+      growth: val(growth),
+      posts: val(posts),
+      stories: val(stories),
+      invites: val(invites),
+      invitesError: invites.status === "rejected" ? invites.reason : null,
+    });
     setError(profile.status === "rejected" ? profile.reason : null);
   }, []);
 
@@ -171,6 +182,12 @@ export default function Instagram() {
         />
       </div>
 
+      <CollabInvitesCard
+        invites={Array.isArray(data?.invites) ? data.invites : []}
+        error={data?.invitesError}
+        onAnswered={() => load(true)}
+      />
+
       <Card title="Eng yaxshi postlar" icon={TbStars}>
         {p || posts.length ? (
           <div className={`${styles.posts} anim-stagger`}>
@@ -241,11 +258,101 @@ export default function Instagram() {
   );
 }
 
+/* ── Bizga kelgan collab takliflari ───────────────────────── */
+/**
+ * Boshqa akkaunt bizni postiga hammuallif qilib chaqirsa — shu yerda.
+ * Javob ikkala yo'nalishda ham tasdiqlash oynasi orqali: qabul qilish
+ * postni bizning profilimizga chiqaradi, rad etish esa taklifni yopadi,
+ * va ikkalasini ham panel orqali qaytarib bo'lmaydi.
+ */
+function CollabInvitesCard({ invites, error, onAnswered }) {
+  const [confirm, confirmDialog] = useConfirm();
+  // Javob berilganlar ro'yxat qayta yuklanguncha ham ko'rinmasin
+  const [answered, setAnswered] = useState([]);
+  const list = invites.filter((inv) => !answered.includes(inv.mediaId));
+
+  const respond = (inv, accept) => {
+    const who = inv.owner ? `@${inv.owner}` : "Bu akkaunt";
+    confirm({
+      title: accept ? "Collab taklifini qabul qilish" : "Collab taklifini rad etish",
+      message: accept
+        ? `${who} posti sizning profilingizda ham chiqsinmi?`
+        : `${who} taklifi rad etilsinmi?`,
+      details: accept
+        ? "Post ikkala profilda koʻrinadi, layk va izohlar umumiy boʻladi. Buni panel orqali qaytarib boʻlmaydi."
+        : "Post sizning profilingizda chiqmaydi. Buni panel orqali qaytarib boʻlmaydi.",
+      confirmText: accept ? "Qabul qilish" : "Rad etish",
+      busyText: accept ? "Qabul qilinmoqda…" : "Rad etilmoqda…",
+      tone: accept ? "primary" : "danger",
+      action: async () => {
+        await client.post(ENDPOINTS.INSTAGRAM.COLLAB_INVITE(inv.mediaId), { accept });
+        setAnswered((ids) => [...ids, inv.mediaId]);
+        onAnswered?.();
+      },
+    });
+  };
+
+  return (
+    <Card
+      title="Collab takliflari"
+      icon={TbUsers}
+      actions={list.length ? <Badge tone="warn" pulse>{list.length}</Badge> : null}
+    >
+      {error ? (
+        <ErrorBox error={error} />
+      ) : list.length ? (
+        <div className={`${styles.invites} anim-stagger`}>
+          {list.map((inv, i) => (
+            <div key={inv.mediaId} className={styles.invite} style={{ "--i": i }}>
+              <div className={styles.inviteThumb}>
+                {inv.mediaUrl ? <img src={inv.mediaUrl} alt="" loading="lazy" /> : <TbBrandInstagram size={22} />}
+              </div>
+              <div className={styles.inviteText}>
+                <strong>{inv.owner ? `@${inv.owner}` : "Nomaʼlum akkaunt"}</strong>
+                <span className="hint"> sizni hammuallif qilib chaqirdi</span>
+                {inv.caption && <p>{inv.caption}</p>}
+              </div>
+              <div className={styles.inviteActions}>
+                <Button variant="ghost" size="sm" icon={TbX} onClick={() => respond(inv, false)}>
+                  Rad etish
+                </Button>
+                <Button size="sm" icon={TbCheck} onClick={() => respond(inv, true)}>
+                  Qabul qilish
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <Empty icon={TbUsers}>Hozircha collab taklifi yoʻq</Empty>
+      )}
+      {confirmDialog}
+    </Card>
+  );
+}
+
 /* ── Post / hikoya oynasi ─────────────────────────────────── */
+const COLLAB_STATUS = { accepted: "qabul qilgan", pending: "javob kutilmoqda", declined: "rad etgan" };
+
 function MediaModal({ kind, item, onClose, onDeleted }) {
   const isStory = kind === "story";
   const isVideo = item.type === "VIDEO";
   const [confirm, confirmDialog] = useConfirm();
+  const [collaborators, setCollaborators] = useState(null);
+
+  // Hammualliflar faqat post/Reels da bo'ladi. Endigina joylangan (lokal)
+  // postning Instagram ID si hali yo'q — u holda so'ralmaydi.
+  useEffect(() => {
+    if (isStory || !/^\d+$/.test(String(item.id))) return undefined;
+    let alive = true;
+    client
+      .get(ENDPOINTS.INSTAGRAM.COLLABORATORS(item.id), { silent: true })
+      .then((r) => alive && setCollaborators(Array.isArray(r?.data) ? r.data : []))
+      .catch(() => alive && setCollaborators([]));
+    return () => {
+      alive = false;
+    };
+  }, [isStory, item.id]);
 
   const remove = () =>
     confirm({
@@ -282,6 +389,16 @@ function MediaModal({ kind, item, onClose, onDeleted }) {
         ["Qamrov", stat(item.reach)],
         ["Ulashilgan", stat(item.shares)],
         ["Saqlagan", stat(item.saved)],
+        ...(collaborators?.length
+          ? [
+              [
+                "Hammualliflar",
+                collaborators
+                  .map((c) => `@${c.username}${COLLAB_STATUS[c.status] ? ` (${COLLAB_STATUS[c.status]})` : ""}`)
+                  .join(", "),
+              ],
+            ]
+          : []),
       ];
 
   // Statistika yo'qligi xato emas: Instagram kam ko'rilgan media uchun
@@ -351,6 +468,24 @@ function MediaModal({ kind, item, onClose, onDeleted }) {
 /* ── Yangi post ───────────────────────────────────────────── */
 const CAPTION_MAX = 2200; // Instagram chegarasi
 const FILE_MAX = 100 * 1024 * 1024; // backenddagi chegara bilan bir xil
+const COLLAB_MAX = 3; // Instagram chegarasi
+const USERNAME_RE = /^[a-z0-9._]{1,30}$/; // backenddagi tekshiruv bilan bir xil
+
+/**
+ * Kiritilgan matnni hammualliflar ro'yxatiga qo'shadi: "@ali, vali" →
+ * ["ali", "vali"]. Noto'g'ri username yoki chegaradan oshgani — xato matni.
+ */
+function mergeCollabs(list, raw) {
+  const next = [...list];
+  for (const part of String(raw).split(/[\s,]+/)) {
+    const name = part.trim().replace(/^@+/, "").toLowerCase();
+    if (!name || next.includes(name)) continue;
+    if (!USERNAME_RE.test(name)) return { list, error: `“${part}” — notoʻgʻri Instagram username` };
+    if (next.length >= COLLAB_MAX) return { list: next, error: `Eng koʻpi ${COLLAB_MAX} ta hammuallif` };
+    next.push(name);
+  }
+  return { list: next, error: null };
+}
 
 /**
  * Rasm — oddiy post, video — Reels (lentaga ham chiqadi).
@@ -366,11 +501,32 @@ function NewPostModal({ onClose, onPublished }) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [caption, setCaption] = useState("");
+  const [collabs, setCollabs] = useState([]);
+  const [collabInput, setCollabInput] = useState("");
+  const [collabError, setCollabError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
   const fileRef = useRef(null);
   const videoRef = useRef(null);
+
+  const addCollabs = (raw) => {
+    const { list, error: err } = mergeCollabs(collabs, raw);
+    setCollabs(list);
+    setCollabError(err);
+    if (!err) setCollabInput("");
+    return { list, err };
+  };
+
+  const onCollabKey = (e) => {
+    if (e.key === "Enter" || e.key === "," || e.key === " ") {
+      e.preventDefault();
+      if (collabInput.trim()) addCollabs(collabInput);
+    } else if (e.key === "Backspace" && !collabInput && collabs.length) {
+      setCollabs(collabs.slice(0, -1));
+      setCollabError(null);
+    }
+  };
 
   const isVideo = file?.type?.startsWith("video/");
 
@@ -409,6 +565,13 @@ function NewPostModal({ onClose, onPublished }) {
 
   const publish = async () => {
     if (!file) return;
+    // Maydonda yozilib, Enter bosilmay qolgan username ham hisobga olinadi
+    let finalCollabs = collabs;
+    if (collabInput.trim()) {
+      const { list, err } = addCollabs(collabInput);
+      if (err) return;
+      finalCollabs = list;
+    }
     setBusy(true);
     setProgress(0);
     setError(null);
@@ -416,6 +579,7 @@ function NewPostModal({ onClose, onPublished }) {
       const fd = new FormData();
       fd.append("media", file);
       if (caption.trim()) fd.append("caption", caption.trim());
+      if (finalCollabs.length) fd.append("collaborators", JSON.stringify(finalCollabs));
       const res = await client.post(ENDPOINTS.INSTAGRAM.POSTS, fd, {
         timeout: 330000, // Reels qayta ishlanishi — 5 daqiqagacha
         onUploadProgress: (e) => {
@@ -512,6 +676,48 @@ function NewPostModal({ onClose, onPublished }) {
             />
             <small>{num(caption.length)} / {num(CAPTION_MAX)} belgi</small>
           </label>
+
+          <div className="field">
+            <span>Hammualliflar (collab)</span>
+            <div className={styles.chips}>
+              {collabs.map((name) => (
+                <span key={name} className={styles.chip}>
+                  @{name}
+                  {!busy && (
+                    <button
+                      type="button"
+                      aria-label={`@${name} ni olib tashlash`}
+                      onClick={() => {
+                        setCollabs(collabs.filter((n) => n !== name));
+                        setCollabError(null);
+                      }}
+                    >
+                      <TbX size={12} />
+                    </button>
+                  )}
+                </span>
+              ))}
+              {collabs.length < COLLAB_MAX && (
+                <input
+                  value={collabInput}
+                  onChange={(e) => {
+                    setCollabInput(e.target.value);
+                    setCollabError(null);
+                  }}
+                  onKeyDown={onCollabKey}
+                  onBlur={() => collabInput.trim() && addCollabs(collabInput)}
+                  placeholder={collabs.length ? "yana username…" : "username, Enter bilan qoʻshing"}
+                  disabled={busy}
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              )}
+            </div>
+            <small className={collabError ? styles.collabError : undefined}>
+              {collabError ||
+                `${COLLAB_MAX} tagacha ommaviy akkaunt · ularga Instagramda taklif boradi, qabul qilgach post ularning profilida ham chiqadi`}
+            </small>
+          </div>
 
           {file && (
             <p className="hint">
