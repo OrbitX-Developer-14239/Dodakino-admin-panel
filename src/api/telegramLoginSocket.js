@@ -52,11 +52,27 @@ export function startTelegramLoginSession({ onUpdate, onDone, onError } = {}) {
       const join = () => socket.emit("join_auth", data.authSessionToken);
       socket.on("connect", join);
 
-      socket.on("auth_success", (payload) => {
-        const accessToken = payload?.data?.accessToken;
+      socket.on("auth_success", async (payload) => {
+        const { loginToken, accessToken, user } = payload?.data || {};
         stop();
+
+        // Bir martalik kod → to'liq sessiya. Refresh cookie faqat brauzerning
+        // O'Z so'roviga qo'yiladi; socket orqali kelgan access token esa 15
+        // daqiqa yashaydi — usiz admin 15 daqiqada chiqarib yuborilardi.
+        if (loginToken) {
+          try {
+            const res = await client.post(ENDPOINTS.ADMIN.TELEGRAM_AUTH, { token: loginToken });
+            const data = res?.data || {};
+            if (!data.accessToken) throw new Error("Server token yubormadi");
+            onDone?.({ status: "connected", accessToken: data.accessToken, user: data.user || user });
+          } catch (err) {
+            onError?.(err);
+          }
+          return;
+        }
+
         if (accessToken) {
-          onDone?.({ status: "connected", accessToken, user: payload.data.user });
+          onDone?.({ status: "connected", accessToken, user });
         } else {
           onError?.(new Error("Server token yubormadi"));
         }
