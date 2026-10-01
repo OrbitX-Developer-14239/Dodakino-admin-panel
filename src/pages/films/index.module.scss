@@ -1,0 +1,251 @@
+@use "../../styles/keyframes";
+
+/* ── Qidiruv (kartochka sarlavhasida) ─────────
+   Jurnaldagi qidiruv maydoni bilan bir xil: ichida lupa belgisi. */
+.search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--gap-6);
+  width: min(320px, 100%);
+
+  > svg {
+    position: absolute;
+    left: var(--padding-10);
+    color: var(--color-text-muted);
+    pointer-events: none;
+  }
+
+  input {
+    padding: var(--padding-6-10);
+    padding-left: 32px;
+    font-size: var(--font-size-13);
+  }
+}
+
+@media (max-width: 640px) {
+  .search {
+    width: 100%;
+  }
+}
+
+/* ── Ro'yxat ─────────────────────────────────── */
+.row {
+  cursor: pointer;
+}
+
+.filmName {
+  display: block;
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.filmOriginal {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-12);
+}
+
+/* ── Film tafsiloti ──────────────────────────── */
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-12);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: var(--gap-8);
+}
+
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--padding-10) var(--padding-12);
+  border: 1px solid var(--color-border-secondary);
+  border-radius: var(--border-radius-8);
+  background-color: var(--color-bg-secondary);
+}
+
+.factLabel {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-11);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.factValue {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-15);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-6);
+}
+
+.description {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-13);
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+.episodesHead {
+  display: flex;
+  align-items: center;
+  padding-top: var(--gap-12);
+  border-top: 1px solid var(--color-border-secondary);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-14);
+}
+
+.episodes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-4);
+}
+
+.episode {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-10);
+  padding: var(--padding-6-10);
+  border-radius: var(--border-radius-8);
+  transition: background-color var(--duration-fast) var(--ease-out);
+
+  &:hover {
+    background-color: var(--color-bg-hover);
+  }
+}
+
+.epNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: var(--border-radius-6);
+  background-color: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: var(--font-size-12);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.epName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-13);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.epActions {
+  display: flex;
+  gap: var(--gap-4);
+  flex-shrink: 0;
+}
+
+/* ── Formalar ────────────────────────────────── */
+.form {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Nom + "AI bilan to'ldirish" — tugma maydon bilan bir chiziqda */
+.formRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--gap-10);
+
+  > :global(.field) {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.aiBtn {
+  margin-bottom: var(--margin-16);
+  height: 40px;
+}
+
+.grid2,
+.grid3 {
+  display: grid;
+  column-gap: var(--gap-12);
+}
+
+.grid2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grid3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 560px) {
+  .formRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .aiBtn {
+    margin-top: calc(var(--margin-16) * -0.5);
+  }
+
+  .grid2,
+  .grid3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Poster / video bloki — asosiy maydonlardan ajralib tursin */
+.media {
+  margin: 0 0 var(--margin-16);
+  padding: var(--padding-12);
+  border: 1px dashed var(--color-border-primary);
+  border-radius: var(--border-radius-12);
+
+  legend {
+    padding: 0 var(--padding-6);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-13);
+    font-weight: 600;
+  }
+
+  :global(.field):last-child {
+    margin-bottom: 0;
+  }
+}
+
+.fileRow {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-8);
+  flex-wrap: wrap;
+  margin-bottom: var(--gap-12);
+}
+
+/* Qidirilayotganda lupa o'rnida aylanuvchi belgi */
+.searchSpinner {
+  position: absolute;
+  left: var(--padding-10);
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--color-text-muted);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  pointer-events: none;
+}

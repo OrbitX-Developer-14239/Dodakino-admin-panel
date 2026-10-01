@@ -1,0 +1,53 @@
+/**
+ * Umumiy animatsiyalar — CSS-MODULLAR uchun.
+ *
+ * NEGA ALOHIDA FAYL: animations.css dagi @keyframes global, lekin
+ * CSS-modul ichida yozilgan `animation: fade-up …` nomini modul O'ZI
+ * almashtiradi (masalan `ui_fade-up__q1Hiq`). Bunday nomli animatsiya
+ * esa hech qayerda yo'q edi — ro'yxatlarning paydo bo'lishi, jonli
+ * belgi, tugma yuklanish belgisi kabi hammasi jimgina ISHLAMASDI.
+ *
+ * Modul shu faylni `@use` qilsa, animatsiya o'sha modulning ichida
+ * e'lon qilinadi va nom mos keladi. Qiymatlar animations.css bilan
+ * bir xil — ikkalasini birga o'zgartiring.
+ */
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes pop-in {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes soft-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position: 200% 0; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes value-bump {
+  0%   { transform: none; }
+  35%  { transform: translateY(-3px) scale(1.03); }
+  100% { transform: none; }
+}
