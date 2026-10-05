@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TbChartLine, TbEye, TbRefresh, TbSpeakerphone } from "react-icons/tb";
 import styles from "./index.module.scss";
 import client from "../../api/client";
@@ -290,7 +290,7 @@ function ChannelJoins({ reloadKey, onBusy }) {
   const { data, error, busy, load } = useCardData(ENDPOINTS.STATISTICS.CHANNEL_JOINS, { range }, reloadKey);
   useEffect(() => onBusy?.("channels", busy), [busy, onBusy]);
 
-  const channels = data?.channels || [];
+  const channels = useMemo(() => data?.channels || [], [data?.channels]);
 
   useEffect(() => {
     if (channels.length > 0 && (!channel || !channels.some((c) => String(c.telegram_id) === channel))) {
