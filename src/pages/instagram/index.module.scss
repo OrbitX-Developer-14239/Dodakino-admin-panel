@@ -399,69 +399,170 @@
   cursor: pointer;
 }
 
-/* ── Hammualliflar (collab) ──────────────────── */
-.chips {
+/* ── Hammualliflar (collab) yangi chiroyli dizayni ──────────────────── */
+.collabHeader {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: var(--gap-6);
-  padding: var(--gap-6);
-  border: 1px solid var(--color-border-primary);
-  border-radius: var(--border-radius-8);
-  background-color: var(--color-bg-secondary);
-
-  &:focus-within {
-    border-color: var(--color-accent);
-  }
-
-  input {
-    flex: 1 1 120px;
-    min-width: 0;
-    padding: 4px 6px;
-    border: none;
-    outline: none;
-    background: none;
-    color: var(--color-text-primary);
-    font: inherit;
-  }
+  justify-content: space-between;
 }
 
-.chip {
+.collabCount {
+  font-size: var(--font-size-12);
+  color: var(--color-text-muted);
+}
+
+.collabChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-8);
+  margin-bottom: 2px;
+}
+
+.collabChip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 4px 2px 8px;
-  border-radius: var(--border-radius-circle);
-  background-color: var(--color-accent-soft);
+  gap: 7px;
+  padding: 5px 10px 5px 10px;
+  border-radius: var(--border-radius-8);
+  background-color: var(--color-bg-surface);
+  border: 1px solid var(--color-border-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
   color: var(--color-text-primary);
   font-size: var(--font-size-13);
+  line-height: 1.2;
+  animation: fade-in var(--duration-fast) var(--ease-out);
+  transition: border-color var(--duration-fast) var(--ease-out),
+              background-color var(--duration-fast) var(--ease-out);
+
+  &:hover {
+    border-color: rgba(124, 108, 255, 0.4);
+    background-color: var(--color-bg-hover);
+  }
+
+  .chipBrand {
+    color: #e1306c;
+    flex-shrink: 0;
+  }
+
+  strong {
+    font-weight: 500;
+    color: var(--color-text-primary);
+  }
 
   button {
     display: inline-flex;
-    padding: 2px;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-left: 2px;
+    padding: 0;
     border: none;
-    border-radius: var(--border-radius-circle);
-    background: none;
-    color: var(--color-text-secondary);
+    border-radius: var(--border-radius-4);
+    background: transparent;
+    color: var(--color-text-muted);
     cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
 
     &:hover {
-      background-color: var(--color-bg-hover);
-      color: var(--color-text-primary);
+      background-color: var(--color-danger-soft);
+      color: var(--color-danger);
     }
   }
+}
+
+.collabInputWrap {
+  position: relative;
+  width: 100%;
+}
+
+.collabInput {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border-primary) !important;
+  border-radius: var(--border-radius-8) !important;
+  background-color: var(--color-bg-secondary) !important;
+  color: var(--color-text-primary) !important;
+  font-family: inherit;
+  font-size: var(--font-size-14);
+  line-height: 1.4;
+  outline: none !important;
+  box-shadow: none !important;
+  transition: border-color var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out),
+              background-color var(--duration-fast) var(--ease-out);
+
+  &::placeholder {
+    color: var(--color-text-muted);
+  }
+
+  &:hover {
+    border-color: rgba(124, 108, 255, 0.5) !important;
+  }
+
+  &:focus {
+    border-color: var(--color-accent) !important;
+    background-color: var(--color-bg-surface) !important;
+    box-shadow: 0 0 0 3px var(--color-accent-soft) !important;
+  }
+}
+
+.collabMaxNotice {
+  padding: 10px 14px;
+  border-radius: var(--border-radius-8);
+  background-color: var(--color-bg-secondary);
+  border: 1px dashed var(--color-border-primary);
+  color: var(--color-ok, #34d399);
+  font-size: var(--font-size-13);
+  text-align: center;
 }
 
 /* Hammuallif takliflari — maydon ostida, oqimda (oyna chetida kesilib qolmaydi) */
 .suggest {
   display: flex;
   flex-direction: column;
-  margin-top: 4px;
-  padding: 4px;
+  margin-top: 6px;
+  padding: 6px;
   border: 1px solid var(--color-border-primary);
   border-radius: var(--border-radius-8);
   background-color: var(--color-bg-surface);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   animation: fade-in var(--duration-fast) var(--ease-out);
+}
+
+.suggestHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px 6px;
+  border-bottom: 1px solid var(--color-border-secondary);
+  margin-bottom: 4px;
+
+  span {
+    font-size: var(--font-size-12);
+    font-weight: 500;
+    color: var(--color-text-muted);
+  }
+}
+
+.suggestCloseBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: var(--border-radius-4);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+
+  &:hover {
+    background-color: var(--color-bg-hover);
+    color: var(--color-text-primary);
+  }
 }
 
 .suggestItem {
@@ -601,4 +702,22 @@
 .inviteActions {
   display: flex;
   gap: var(--gap-8);
+}
+
+/* Qo'shimcha yuklash va Collab avatarlari */
+.loadMoreWrap {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--gap-16);
+  padding-top: var(--gap-12);
+}
+
+.avatarImg {
+  border-radius: 50%;
+}
+
+.inviteDate {
+  font-size: var(--font-size-12);
+  color: var(--color-text-muted);
+  margin-left: 4px;
 }

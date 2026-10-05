@@ -72,7 +72,7 @@ const renderApp = () =>
 const requestedPath = toRouterPath(window.location.pathname);
 const requestedRoute = findRouteByPath(requestedPath);
 const initialPath =
-  requestedRoute?.private && !TokenManager.hasAccessToken() ? "/auth" : requestedPath;
+  requestedRoute?.private && !TokenManager.isAuthenticated() ? "/auth" : requestedPath;
 
 // Birinchi render FAQAT shu sahifaning chunk'i tayyor bo'lgach (yoki
 // maks 2s) — bu paytda index.html'dagi boot-loader ko'rinib turadi.

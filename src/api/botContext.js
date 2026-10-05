@@ -38,4 +38,4 @@ export const setSelectedBotId = (botId) => {
 
 /** Botga xos yo'llar — ular /<botId> prefiksini oladi.
  *  /admin, /logs, /instagram bu ro'yxatda YO'Q — ular umumiy. */
-export const TENANT_PATH_PREFIXES = ["/film", "/episode", "/channel", "/user", "/statistics", "/bot"];
+export const TENANT_PATH_PREFIXES = ["/film", "/episode", "/channel", "/user", "/statistics", "/bot", "/instagram"];

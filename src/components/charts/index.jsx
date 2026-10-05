@@ -150,7 +150,7 @@ export function TrendChart({ data = [], series = [], xKey = "label", height = 26
   return (
     <div className={styles.chart} style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 8, right: 8, left: narrow ? -26 : -18, bottom: 0 }}>
+        <AreaChart data={data} margin={{ top: 8, right: 12, left: narrow ? 0 : 4, bottom: 0 }}>
           <defs>
             {series.map((s, i) => (
               <linearGradient key={s.key} id={`${gradientId}-${i}`} x1="0" y1="0" x2="0" y2="1">
@@ -162,7 +162,7 @@ export function TrendChart({ data = [], series = [], xKey = "label", height = 26
 
           <CartesianGrid stroke={palette.grid} vertical={false} />
           <XAxis dataKey={xKey} stroke={palette.muted} {...AXIS} />
-          <YAxis stroke={palette.muted} tickFormatter={compact} width={narrow ? 34 : 52} {...AXIS} />
+          <YAxis stroke={palette.muted} tickFormatter={compact} width={narrow ? 42 : 56} {...AXIS} />
           <Tooltip content={<ChartTooltip />} cursor={{ stroke: palette.border }} />
 
           {series.map((s, i) => (

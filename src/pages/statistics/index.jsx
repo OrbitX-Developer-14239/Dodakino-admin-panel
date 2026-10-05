@@ -291,27 +291,32 @@ function ChannelJoins({ reloadKey, onBusy }) {
   useEffect(() => onBusy?.("channels", busy), [busy, onBusy]);
 
   const channels = data?.channels || [];
-  const selected = channels.find((c) => String(c.telegram_id) === channel);
+
+  useEffect(() => {
+    if (channels.length > 0 && (!channel || !channels.some((c) => String(c.telegram_id) === channel))) {
+      setChannel(String(channels[0].telegram_id));
+    }
+  }, [channels, channel]);
+
+  const activeChannel = channel || (channels[0] ? String(channels[0].telegram_id) : "");
+  const selected = channels.find((c) => String(c.telegram_id) === activeChannel) || channels[0];
 
   const chart = (data?.points || []).map((p) => {
     const row = selected ? p.channels?.[selected.telegram_id] || { join: 0, leave: 0 } : p;
     return { label: dayLabel(p.date), join: row.join, leave: row.leave };
   });
-  const joined = selected ? selected.joined : data?.totals?.joined;
-  const left = selected ? selected.left : data?.totals?.left;
-  const members = selected ? selected.members : data?.totals?.memberships;
+  const joined = selected ? selected.joined : 0;
+  const left = selected ? selected.left : 0;
+  const members = selected ? selected.members : 0;
 
-  const channelOptions = [
-    { value: "", label: "Barcha kanallar" },
-    ...channels.map((c) => ({ value: String(c.telegram_id), label: c.name })),
-  ];
+  const channelOptions = channels.map((c) => ({ value: String(c.telegram_id), label: c.name }));
 
   return (
     <Card title="Majburiy kanallar" icon={TbSpeakerphone}>
       <div className={styles.toolbar}>
         <Segmented label="Davr" options={RANGES} value={range} onChange={setRange} />
         {channels.length > 1 && (
-          <Segmented label="Kanal" options={channelOptions} value={channel} onChange={setChannel} />
+          <Segmented label="Kanal" options={channelOptions} value={activeChannel} onChange={setChannel} />
         )}
       </div>
 
@@ -324,9 +329,9 @@ function ChannelJoins({ reloadKey, onBusy }) {
         <div className={styles.body} data-busy={busy || undefined}>
           <div className="grid c3">
             <Stat
-              label={selected ? "Hozirgi aʼzolar" : "Jami aʼzolik"}
+              label="Hozirgi aʼzolar"
               value={num(members)}
-              sub={selected ? "botga yozganlar ichida" : `${num(channels.length)} kanal yigʻindisi`}
+              sub="botga yozganlar ichida"
             />
             <Stat label="Qoʻshildi" value={`+${num(joined)}`} sub={`bot orqali · ${during(range)}`} tone="ok" />
             <Stat label="Chiqib ketdi" value={`−${num(left)}`} sub={`bot orqali qoʻshilganlardan`} tone="warn" />

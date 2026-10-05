@@ -114,13 +114,23 @@ let refreshing = null;
 
 const refreshAccessToken = () => {
   if (!refreshing) {
+    const refreshUrl = `${API_BASE_URL.replace(/\/+$/, "")}/admin/refresh`;
+    const fallbackRefreshToken = TokenManager.getRefreshToken();
     refreshing = axios
-      .post(`${API_BASE_URL}/admin/refresh`, {}, { withCredentials: true })
+      .post(
+        refreshUrl,
+        fallbackRefreshToken ? { refreshToken: fallbackRefreshToken } : {},
+        { withCredentials: true }
+      )
       .then(({ data }) => {
-        const token = data?.data?.accessToken || data?.accessToken;
-        if (!token) throw new Error("Yangi access token olinmadi");
-        TokenManager.setAccessToken(token);
-        return token;
+        const accessToken = data?.data?.accessToken || data?.accessToken;
+        const refreshToken = data?.data?.refreshToken || data?.refreshToken;
+        if (!accessToken) throw new Error("Yangi access token olinmadi");
+        TokenManager.setAccessToken(accessToken);
+        if (refreshToken) {
+          TokenManager.setRefreshToken(refreshToken);
+        }
+        return accessToken;
       })
       .finally(() => {
         refreshing = null;
@@ -166,7 +176,11 @@ client.interceptors.response.use(
       try {
         const token = await refreshAccessToken();
         config.__refreshed = true;
-        config.headers.Authorization = `Bearer ${token}`;
+        if (config.headers?.set) {
+          config.headers.set("Authorization", `Bearer ${token}`);
+        } else if (config.headers) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
         return client(config);
       } catch (refreshError) {
         TokenManager.clearTokens();

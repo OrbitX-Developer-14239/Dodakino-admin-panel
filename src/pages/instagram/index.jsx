@@ -63,27 +63,53 @@ export default function Instagram() {
   // Instagram o'chirganini tasdiqlagan post/hikoyalar — ro'yxat qayta
   // yuklanishini kutmay darhol yashiriladi
   const [removed, setRemoved] = useState([]);
+  const [extraPosts, setExtraPosts] = useState([]);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const load = useCallback(async (silent = false) => {
     const get = (url) => client.get(url, { silent }).then((r) => r?.data);
     const [profile, growth, posts, stories, invites] = await Promise.allSettled([
       get(ENDPOINTS.INSTAGRAM.PROFILE),
       get(ENDPOINTS.INSTAGRAM.GROWTH),
-      get(ENDPOINTS.INSTAGRAM.POSTS),
+      get(`${ENDPOINTS.INSTAGRAM.POSTS}?limit=30`),
       get(ENDPOINTS.INSTAGRAM.STORIES),
       get(ENDPOINTS.INSTAGRAM.COLLAB_INVITES),
     ]);
     const val = (r) => (r.status === "fulfilled" ? r.value : null);
+    const postsVal = val(posts);
     setData({
       profile: val(profile),
       growth: val(growth),
-      posts: val(posts),
+      posts: postsVal,
       stories: val(stories),
       invites: val(invites),
       invitesError: invites.status === "rejected" ? invites.reason : null,
     });
+    setExtraPosts([]);
+    setNextCursor(postsVal?.nextCursor || null);
+    setHasMore(Boolean(postsVal?.hasMore));
     setError(profile.status === "rejected" ? profile.reason : null);
   }, []);
+
+  const loadMorePosts = async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await client
+        .get(`${ENDPOINTS.INSTAGRAM.POSTS}?limit=30&after=${nextCursor}`)
+        .then((r) => r?.data);
+      const newPosts = res?.allMedia || [];
+      setExtraPosts((prev) => [...prev, ...newPosts]);
+      setNextCursor(res?.nextCursor || null);
+      setHasMore(Boolean(res?.hasMore));
+    } catch (err) {
+      console.error("Ko'proq postlarni yuklashda xatolik:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
     load();
@@ -92,7 +118,7 @@ export default function Instagram() {
   if (!data && !error) return <Loading rows={5} />;
 
   const p = data?.profile;
-  const serverPosts = data?.posts?.allMedia || [];
+  const serverPosts = [...(data?.posts?.allMedia || []), ...extraPosts];
   // Server nusxasi kelgach u ishlatiladi (haqiqiy rasm va statistika), lekin joyi boshida qoladi
   const pinned = fresh.map((f) => serverPosts.find((s) => s.id === f.id) || f);
   const posts = [...pinned, ...serverPosts.filter((s) => !fresh.some((f) => f.id === s.id))].filter(
@@ -104,6 +130,12 @@ export default function Instagram() {
     label,
     followers: data.growth.datasets?.[0]?.data?.[i] ?? 0,
   }));
+
+  const isNotConfigured = Boolean(
+    error?.status === 404 ||
+    error?.raw?.response?.data?.notConfigured ||
+    /instagram tokenlari olinmagan/i.test(error?.message || "")
+  );
 
   return (
     <>
@@ -123,114 +155,138 @@ export default function Instagram() {
         </Button>
       </PageHead>
 
-      {error && (
-        <ErrorBox
-          error={{
-            message:
-              "Instagram maʼlumotini olib boʻlmadi. Koʻpincha sabab — Instagram tokenining muddati tugagan: " +
-              "backend .env dagi INSTAGRAM_ACCESS_TOKEN ni yangilang.",
-          }}
-          onRetry={() => load()}
-        />
-      )}
-
-      {p && (
+      {isNotConfigured ? (
         <Card>
-          <div className={styles.profile}>
-            {p.profile_picture_url ? (
-              <img className={styles.avatar} src={p.profile_picture_url} alt="" />
-            ) : (
-              <span className={styles.avatar}>
-                <TbBrandInstagram size={26} />
-              </span>
-            )}
-            <div className={styles.profileText}>
-              <strong className={styles.profileName}>{p.name || p.username}</strong>
-              <a
-                className="link"
-                href={`https://instagram.com/${p.username}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                @{p.username}
-              </a>
-              {p.biography && <p className={styles.bio}>{p.biography}</p>}
-            </div>
-          </div>
+          <Empty icon={TbBrandInstagram}>
+            Bu bot uchun instagram tokenlari olinmagan
+          </Empty>
         </Card>
-      )}
-
-      <div className="grid c3">
-        <Stat label="Obunachilar" value={compact(p?.followers_count)} sub="followers" tone="ok" />
-        <Stat label="Obunalar" value={compact(p?.follows_count)} sub="following" />
-        <Stat label="Postlar" value={num(p?.media_count)} sub="jami nashrlar" tone="info" />
-      </div>
-
-      <div className="grid c2">
-        <Card title="Obunachilar oʻsishi" icon={TbChartLine}>
-          {growthData.length ? (
-            <TrendChart data={growthData} series={[{ key: "followers", name: "Obunachilar" }]} />
-          ) : (
-            <Empty>Oʻsish maʼlumoti yoʻq</Empty>
+      ) : (
+        <>
+          {error && (
+            <ErrorBox
+              error={{
+                message:
+                  error.message ||
+                  "Instagram maʼlumotini olib boʻlmadi. Koʻpincha sabab — Instagram tokenining muddati tugagan: " +
+                  "backend .env dagi INSTAGRAM_ACCESS_TOKEN ni yangilang.",
+              }}
+              onRetry={() => load()}
+            />
           )}
-        </Card>
 
-        <StoriesCard
-          stories={stories}
-          onUploaded={() => load(true)}
-          onOpen={(item) => setOpenMedia({ kind: "story", item })}
-        />
-      </div>
-
-      <CollabInvitesCard
-        invites={Array.isArray(data?.invites) ? data.invites : []}
-        error={data?.invitesError}
-        onAnswered={() => load(true)}
-      />
-
-      <Card title="Eng yaxshi postlar" icon={TbStars}>
-        {p || posts.length ? (
-          <div className={`${styles.posts} anim-stagger`}>
-            {p && (
-              <button type="button" className={styles.addPost} onClick={() => setComposing(true)}>
-                <span className={styles.addIcon}>
-                  <TbPlus size={22} />
-                </span>
-                <strong>Yangi post</strong>
-                <span className="hint">rasm — post, video — Reels</span>
-              </button>
-            )}
-            {posts.map((post, i) => (
-              <button
-                key={post.id}
-                type="button"
-                className={styles.post}
-                style={{ "--i": i }}
-                onClick={() => setOpenMedia({ kind: "post", item: post })}
-              >
-                <div className={styles.thumb}>
-                  {post.thumbnail ? <img src={post.thumbnail} alt="" loading="lazy" /> : <TbBrandInstagram size={24} />}
-                  {post.type === "VIDEO" && <Badge tone="info">video</Badge>}
+          {p && (
+            <Card>
+              <div className={styles.profile}>
+                {p.profile_picture_url ? (
+                  <img className={styles.avatar} src={p.profile_picture_url} alt="" />
+                ) : (
+                  <span className={styles.avatar}>
+                    <TbBrandInstagram size={26} />
+                  </span>
+                )}
+                <div className={styles.profileText}>
+                  <strong className={styles.profileName}>{p.name || p.username}</strong>
+                  <a
+                    className="link"
+                    href={`https://instagram.com/${p.username}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    @{p.username}
+                  </a>
+                  {p.biography && <p className={styles.bio}>{p.biography}</p>}
                 </div>
-                <p className={styles.caption}>{post.caption || "Izohsiz"}</p>
-                <div className={styles.postStats}>
-                  <span title="Yoqtirishlar">
-                    <TbHeart size={13} /> {stat(post.likes)}
-                  </span>
-                  <span title="Izohlar">
-                    <TbMessageCircle size={13} /> {stat(post.comments)}
-                  </span>
-                  <span title="Koʻrishlar">
-                    <TbEye size={13} /> {stat(post.views)}
-                  </span>
-                </div>
-              </button>
-            ))}
+              </div>
+            </Card>
+          )}
+
+          <div className="grid c3">
+            <Stat label="Obunachilar" value={compact(p?.followers_count)} sub="followers" tone="ok" />
+            <Stat label="Obunalar" value={compact(p?.follows_count)} sub="following" />
+            <Stat label="Postlar" value={num(p?.media_count)} sub="jami nashrlar" tone="info" />
           </div>
-        ) : (
-          <Empty>Post topilmadi</Empty>
-        )}
-      </Card>
+
+          <div className="grid c2">
+            <Card title="Obunachilar oʻsishi" icon={TbChartLine}>
+              {growthData.length ? (
+                <TrendChart data={growthData} series={[{ key: "followers", name: "Obunachilar" }]} />
+              ) : (
+                <Empty>Oʻsish maʼlumoti yoʻq</Empty>
+              )}
+            </Card>
+
+            <StoriesCard
+              stories={stories}
+              onUploaded={() => load(true)}
+              onOpen={(item) => setOpenMedia({ kind: "story", item })}
+            />
+          </div>
+
+          <CollabInvitesCard
+            invites={Array.isArray(data?.invites) ? data.invites : []}
+            error={data?.invitesError}
+            onAnswered={() => load(true)}
+          />
+
+          <Card title="Postlar" icon={TbStars}>
+            {p || posts.length ? (
+              <div className={`${styles.posts} anim-stagger`}>
+                {p && (
+                  <button type="button" className={styles.addPost} onClick={() => setComposing(true)}>
+                    <span className={styles.addIcon}>
+                      <TbPlus size={22} />
+                    </span>
+                    <strong>Yangi post</strong>
+                    <span className="hint">rasm — post, video — Reels</span>
+                  </button>
+                )}
+                {posts.map((post, i) => (
+                  <button
+                    key={post.id}
+                    type="button"
+                    className={styles.post}
+                    style={{ "--i": i }}
+                    onClick={() => setOpenMedia({ kind: "post", item: post })}
+                  >
+                    <div className={styles.thumb}>
+                      {post.thumbnail ? <img src={post.thumbnail} alt="" loading="lazy" /> : <TbBrandInstagram size={24} />}
+                      {post.type === "VIDEO" && <Badge tone="info">video</Badge>}
+                    </div>
+                    <p className={styles.caption}>{post.caption || "Izohsiz"}</p>
+                    <div className={styles.postStats}>
+                      <span title="Yoqtirishlar">
+                        <TbHeart size={13} /> {stat(post.likes)}
+                      </span>
+                      <span title="Izohlar">
+                        <TbMessageCircle size={13} /> {stat(post.comments)}
+                      </span>
+                      <span title="Koʻrishlar">
+                        <TbEye size={13} /> {stat(post.views)}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <Empty>Post topilmadi</Empty>
+            )}
+            {hasMore && (
+              <div className={styles.loadMoreWrap}>
+                <Button
+                  variant="secondary"
+                  onClick={loadMorePosts}
+                  busy={loadingMore}
+                  busyText="Yuklanmoqda…"
+                  icon={TbPlus}
+                >
+                  Koʻproq yuklash (+30)
+                </Button>
+              </div>
+            )}
+          </Card>
+        </>
+      )}
 
       {composing && (
         <NewPostModal
@@ -269,10 +325,11 @@ function CollabInvitesCard({ invites, error, onAnswered }) {
   const [confirm, confirmDialog] = useConfirm();
   // Javob berilganlar ro'yxat qayta yuklanguncha ham ko'rinmasin
   const [answered, setAnswered] = useState([]);
-  const list = invites.filter((inv) => !answered.includes(inv.mediaId));
+  const list = invites.filter((inv) => !answered.includes(inv.mediaId || inv.id));
 
   const respond = (inv, accept) => {
-    const who = inv.owner ? `@${inv.owner}` : "Bu akkaunt";
+    const mediaId = inv.mediaId || inv.id;
+    const who = inv.owner ? `@${inv.owner}` : (inv.ownerName || "Bu akkaunt");
     confirm({
       title: accept ? "Collab taklifini qabul qilish" : "Collab taklifini rad etish",
       message: accept
@@ -285,11 +342,18 @@ function CollabInvitesCard({ invites, error, onAnswered }) {
       busyText: accept ? "Qabul qilinmoqda…" : "Rad etilmoqda…",
       tone: accept ? "primary" : "danger",
       action: async () => {
-        await client.post(ENDPOINTS.INSTAGRAM.COLLAB_INVITE(inv.mediaId), { accept });
-        setAnswered((ids) => [...ids, inv.mediaId]);
+        await client.post(ENDPOINTS.INSTAGRAM.COLLAB_INVITE(mediaId), { accept });
+        setAnswered((ids) => [...ids, mediaId]);
         onAnswered?.();
       },
     });
+  };
+
+  const formatInviteTime = (timestamp) => {
+    if (!timestamp) return null;
+    const d = new Date(timestamp);
+    if (isNaN(d.getTime())) return null;
+    return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
   };
 
   return (
@@ -302,26 +366,46 @@ function CollabInvitesCard({ invites, error, onAnswered }) {
         <ErrorBox error={error} />
       ) : list.length ? (
         <div className={`${styles.invites} anim-stagger`}>
-          {list.map((inv, i) => (
-            <div key={inv.mediaId} className={styles.invite} style={{ "--i": i }}>
-              <div className={styles.inviteThumb}>
-                {inv.mediaUrl ? <img src={inv.mediaUrl} alt="" loading="lazy" /> : <TbBrandInstagram size={22} />}
+          {list.map((inv, i) => {
+            const inviteKey = inv.mediaId || inv.id || i;
+            const timeStr = formatInviteTime(inv.timestamp);
+            return (
+              <div key={inviteKey} className={styles.invite} style={{ "--i": i }}>
+                <div className={`${styles.inviteThumb} ${inv.ownerAvatar ? styles.hasAvatar : ""}`}>
+                  {inv.ownerAvatar ? (
+                    <img
+                      src={inv.ownerAvatar}
+                      alt={inv.owner || ""}
+                      className={styles.avatarImg}
+                      loading="lazy"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                  ) : inv.thumbnail ? (
+                    <img src={inv.thumbnail} alt="" loading="lazy" />
+                  ) : (
+                    <TbBrandInstagram size={22} />
+                  )}
+                </div>
+                <div className={styles.inviteText}>
+                  <strong>{inv.owner ? `@${inv.owner}` : (inv.ownerName || "Nomaʼlum akkaunt")}</strong>
+                  {inv.ownerName && inv.owner && <span className="hint"> ({inv.ownerName})</span>}
+                  <span className="hint"> sizni hammuallif qilib chaqirdi</span>
+                  {timeStr && <span className={styles.inviteDate}> • {timeStr}</span>}
+                  {inv.caption && <p>{inv.caption}</p>}
+                </div>
+                <div className={styles.inviteActions}>
+                  <Button variant="ghost" size="sm" icon={TbX} onClick={() => respond(inv, false)}>
+                    Rad etish
+                  </Button>
+                  <Button size="sm" icon={TbCheck} onClick={() => respond(inv, true)}>
+                    Qabul qilish
+                  </Button>
+                </div>
               </div>
-              <div className={styles.inviteText}>
-                <strong>{inv.owner ? `@${inv.owner}` : "Nomaʼlum akkaunt"}</strong>
-                <span className="hint"> sizni hammuallif qilib chaqirdi</span>
-                {inv.caption && <p>{inv.caption}</p>}
-              </div>
-              <div className={styles.inviteActions}>
-                <Button variant="ghost" size="sm" icon={TbX} onClick={() => respond(inv, false)}>
-                  Rad etish
-                </Button>
-                <Button size="sm" icon={TbCheck} onClick={() => respond(inv, true)}>
-                  Qabul qilish
-                </Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <Empty icon={TbUsers}>Hozircha collab taklifi yoʻq</Empty>
@@ -469,6 +553,12 @@ function MediaModal({ kind, item, onClose, onDeleted }) {
 const CAPTION_MAX = 2200; // Instagram chegarasi
 const FILE_MAX = 100 * 1024 * 1024; // backenddagi chegara bilan bir xil
 const COLLAB_MAX = 3; // Instagram chegarasi
+const DEFAULT_COLLAB_ACCOUNTS = [
+  { username: "mega_filmlar_", name: "Mega Filmlar", label: "Tavsiya etilgan hamkor" },
+  { username: "shou_bisnes_yulduzlari", name: "Shou-biznes yulduzlari", label: "Tavsiya etilgan hamkor" },
+  { username: "sekretvideo", name: "Sekret Video", label: "Tavsiya etilgan hamkor" },
+];
+const DEFAULT_POST_CAPTION = "✨ Kino kodi: 000\n🎬 Kinoni profilimizdagi botdan olishingiz mumkin! 🤖🍿";
 const USERNAME_RE = /^[a-z0-9._]{1,30}$/; // backenddagi tekshiruv bilan bir xil
 
 /**
@@ -537,13 +627,41 @@ function useCollabSuggest(input, exclude) {
     };
   }, [q, valid]);
 
-  if (!valid) return { options: [], loading: false };
+  const defaultOptions = DEFAULT_COLLAB_ACCOUNTS
+    .filter((d) => !exclude.includes(d.username) && (!q || d.username.includes(q)))
+    .map((d) => ({
+      kind: "default",
+      username: d.username,
+      name: d.name,
+      label: d.label,
+    }));
+
+  if (!valid) {
+    return {
+      options: defaultOptions,
+      loading: false,
+    };
+  }
 
   const current = state.q === q; // javob hozirgi matnga tegishlimi
   const options = [];
-  if (current && state.exact) options.push({ kind: "exact", ...state.exact });
-  if (current) state.known.forEach((k) => options.push({ kind: "known", ...k }));
-  if (current && !state.exact && !state.loading) options.push({ kind: "manual", username: q });
+
+  // Tavsiya etilgan hamkorlardan mos kelganlarini oldinga qo'yamiz
+  defaultOptions.forEach((d) => options.push(d));
+
+  if (current && state.exact && !options.some((o) => o.username === state.exact.username)) {
+    options.push({ kind: "exact", ...state.exact });
+  }
+  if (current) {
+    state.known.forEach((k) => {
+      if (!options.some((o) => o.username === k.username)) {
+        options.push({ kind: "known", ...k });
+      }
+    });
+  }
+  if (current && !state.exact && !state.loading && !options.some((o) => o.username === q)) {
+    options.push({ kind: "manual", username: q });
+  }
 
   return {
     options: options.filter((o) => !exclude.includes(o.username)),
@@ -554,7 +672,7 @@ function useCollabSuggest(input, exclude) {
 function NewPostModal({ onClose, onPublished }) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
-  const [caption, setCaption] = useState("");
+  const [caption, setCaption] = useState(DEFAULT_POST_CAPTION);
   const [collabs, setCollabs] = useState([]);
   const [collabInput, setCollabInput] = useState("");
   const [collabError, setCollabError] = useState(null);
@@ -579,8 +697,13 @@ function NewPostModal({ onClose, onPublished }) {
     suggestOpen && !busy && collabs.length < COLLAB_MAX && (suggestions.length > 0 || suggesting);
 
   const pickSuggestion = (o) => {
-    addCollabs(o.username);
-    setSuggestOpen(false);
+    const { list } = addCollabs(o.username);
+    // Collabchi tanlangandan keyin ham taklif qilinganlar ro'yxati ochiq tursin
+    if (list && list.length < COLLAB_MAX) {
+      setSuggestOpen(true);
+    } else {
+      setSuggestOpen(false);
+    }
     setHi(0);
   };
 
@@ -762,27 +885,41 @@ function NewPostModal({ onClose, onPublished }) {
           </label>
 
           <div className="field">
-            <span>Hammualliflar (collab)</span>
-            <div className={styles.chips}>
-              {collabs.map((name) => (
-                <span key={name} className={styles.chip}>
-                  @{name}
-                  {!busy && (
-                    <button
-                      type="button"
-                      aria-label={`@${name} ni olib tashlash`}
-                      onClick={() => {
-                        setCollabs(collabs.filter((n) => n !== name));
-                        setCollabError(null);
-                      }}
-                    >
-                      <TbX size={12} />
-                    </button>
-                  )}
-                </span>
-              ))}
-              {collabs.length < COLLAB_MAX && (
+            <div className={styles.collabHeader}>
+              <span>Hammualliflar (collab)</span>
+              <span className={styles.collabCount}>{collabs.length} / {COLLAB_MAX}</span>
+            </div>
+
+            {/* Tanlangan hammualliflar — input tepasida alohida chiplar ko'rinishida */}
+            {collabs.length > 0 && (
+              <div className={styles.collabChips}>
+                {collabs.map((name) => (
+                  <span key={name} className={styles.collabChip}>
+                    <TbBrandInstagram size={14} className={styles.chipBrand} />
+                    <strong>@{name}</strong>
+                    {!busy && (
+                      <button
+                        type="button"
+                        aria-label={`@${name} ni olib tashlash`}
+                        title="Olib tashlash"
+                        onClick={() => {
+                          setCollabs(collabs.filter((n) => n !== name));
+                          setCollabError(null);
+                        }}
+                      >
+                        <TbX size={12} />
+                      </button>
+                    )}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Input qismi — toza, zamonaviy fokus halqasi bilan */}
+            {collabs.length < COLLAB_MAX ? (
+              <div className={styles.collabInputWrap}>
                 <input
+                  className={styles.collabInput}
                   value={collabInput}
                   onChange={(e) => {
                     setCollabInput(e.target.value);
@@ -791,10 +928,16 @@ function NewPostModal({ onClose, onPublished }) {
                     setHi(0);
                   }}
                   onKeyDown={onCollabKey}
-                  // Yozilgan matn yorliqqa aylanmaydi — "Joylash" bosilganda baribir hisobga olinadi
                   onBlur={() => setSuggestOpen(false)}
-                  onFocus={() => setSuggestOpen(true)}
-                  placeholder={collabs.length ? "yana username…" : "username yozing…"}
+                  onFocus={() => {
+                    setSuggestOpen(true);
+                    setHi(0);
+                  }}
+                  placeholder={
+                    collabs.length
+                      ? "Yana boshqa username yozing yoki pastdan tanlang…"
+                      : "Username yozing yoki tavsiyalardan tanlang…"
+                  }
                   disabled={busy}
                   autoComplete="off"
                   spellCheck={false}
@@ -803,44 +946,62 @@ function NewPostModal({ onClose, onPublished }) {
                   aria-expanded={showSuggest}
                   aria-autocomplete="list"
                 />
-              )}
-            </div>
 
-            {showSuggest && (
-              <div id="collab-suggest" className={styles.suggest} role="listbox">
-                {suggestions.map((o, i) => (
-                  <button
-                    key={`${o.kind}-${o.username}`}
-                    type="button"
-                    role="option"
-                    aria-selected={i === hi}
-                    className={`${styles.suggestItem} ${i === hi ? styles.suggestActive : ""}`}
-                    // Bosilganda maydon fokusni yo'qotmasin (aks holda ro'yxat yopilib, bosish o'tmaydi)
-                    onMouseDown={(e) => e.preventDefault()}
-                    onMouseEnter={() => setHi(i)}
-                    onClick={() => pickSuggestion(o)}
-                  >
-                    <span className={styles.suggestAvatar}>
-                      {o.picture ? <img src={o.picture} alt="" /> : o.username[0].toUpperCase()}
-                    </span>
-                    <span className={styles.suggestText}>
-                      <strong>@{o.username}</strong>
-                      <small>
-                        {o.kind === "exact"
-                          ? [o.name, o.followers != null ? `${compact(o.followers)} obunachi` : null].filter(Boolean).join(" · ")
-                          : o.kind === "known"
-                            ? SOURCE_LABEL[o.source] || "aloqada boʻlgan"
-                            : "Biznes akkaunt sifatida topilmadi — shaxsiy boʻlsa ham qoʻshish mumkin"}
-                      </small>
-                    </span>
-                  </button>
-                ))}
-                {suggesting && <div className={styles.suggestHint}>Qidirilmoqda…</div>}
+                {showSuggest && (
+                  <div id="collab-suggest" className={styles.suggest} role="listbox">
+                    <div className={styles.suggestHeader}>
+                      <span>Tavsiya etilgan hamkorlar</span>
+                      <button
+                        type="button"
+                        className={styles.suggestCloseBtn}
+                        title="Roʻyxatni yopish (Esc)"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => setSuggestOpen(false)}
+                      >
+                        <TbX size={14} />
+                      </button>
+                    </div>
+                    {suggestions.map((o, i) => (
+                      <button
+                        key={`${o.kind}-${o.username}`}
+                        type="button"
+                        role="option"
+                        aria-selected={i === hi}
+                        className={`${styles.suggestItem} ${i === hi ? styles.suggestActive : ""}`}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onMouseEnter={() => setHi(i)}
+                        onClick={() => pickSuggestion(o)}
+                      >
+                        <span className={styles.suggestAvatar}>
+                          {o.picture ? <img src={o.picture} alt="" /> : o.username[0].toUpperCase()}
+                        </span>
+                        <span className={styles.suggestText}>
+                          <strong>@{o.username}</strong>
+                          <small>
+                            {o.kind === "default"
+                              ? (o.label || "Tavsiya etilgan hamkor")
+                              : o.kind === "exact"
+                              ? [o.name, o.followers != null ? `${compact(o.followers)} obunachi` : null].filter(Boolean).join(" · ")
+                              : o.kind === "known"
+                                ? SOURCE_LABEL[o.source] || "aloqada boʻlgan"
+                                : "Biznes akkaunt sifatida topilmadi — shaxsiy boʻlsa ham qoʻshish mumkin"}
+                          </small>
+                        </span>
+                      </button>
+                    ))}
+                    {suggesting && <div className={styles.suggestHint}>Qidirilmoqda…</div>}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className={styles.collabMaxNotice}>
+                Maksimal {COLLAB_MAX} ta hammuallif tanlandi (Instagram limiti toʻldi)
               </div>
             )}
+
             <small className={collabError ? styles.collabError : undefined}>
               {collabError ||
-                `${COLLAB_MAX} tagacha ommaviy akkaunt · ularga Instagramda taklif boradi, qabul qilgach post ularning profilida ham chiqadi`}
+                `Instagram rasmiy qoidasiga koʻra bitta postga eng koʻpi bilan ${COLLAB_MAX} tagacha hammuallif qoʻshish mumkin. Ularga taklif boradi.`}
             </small>
           </div>
 

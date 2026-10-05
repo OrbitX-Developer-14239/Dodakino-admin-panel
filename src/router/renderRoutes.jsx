@@ -59,17 +59,16 @@ const PageTransition = ({ children }) => {
 const AuthGate = ({ isPrivate, children }) => {
   const { pathname } = useLocation();
 
-  if (isPrivate && !TokenManager.hasAccessToken()) {
+  const isAuth = TokenManager.isAuthenticated();
+
+  if (isPrivate && !isAuth) {
     return <Navigate to="/auth" replace state={{ from: pathname }} />;
   }
 
   // Tizimga kirgan admin /auth sahifasiga qaytmasligi kerak.
-  // IZCHILLIK: yuqoridagi bilan bir xil mezon — `hasAccessToken()`.
-  // Avval bu yerda `isAuthenticated()` (exp ni ham tekshiradi) edi, ya'ni
-  // muddati o'tgan token bilan admin /auth da qolib ketardi, /dashboard
-  // da esa kirita olardi. Endi ikkalasi ham "token bor-yo'qligi" ga
-  // qaraydi; muddati o'tgan bo'lsa interceptor uni fonda yangilaydi.
-  if (!isPrivate && pathname === "/auth" && TokenManager.hasAccessToken()) {
+  // TokenManager.isAuthenticated() access token yoki refresh token borligini tekshiradi.
+  // Agar access token eskirgan bo'lsa ham birinchi API so'rovda interceptor uni fonda yangilaydi.
+  if (!isPrivate && pathname === "/auth" && isAuth) {
     return <Navigate to="/dashboard" replace />;
   }
 

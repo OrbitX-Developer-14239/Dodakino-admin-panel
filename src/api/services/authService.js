@@ -23,8 +23,9 @@ const AdminService = {
   async login(credentials, rememberMe = true) {
     const response = await client.post(ENDPOINTS.ADMIN.LOGIN, credentials);
     const accessToken = response?.data?.accessToken;
+    const refreshToken = response?.data?.refreshToken;
     if (!accessToken) throw new Error(response?.message || "Kirish tasdiqlanmadi");
-    TokenManager.setAccessToken(accessToken, rememberMe);
+    TokenManager.setTokens(accessToken, refreshToken, rememberMe);
     return response;
   },
 
@@ -32,8 +33,8 @@ const AdminService = {
    * Telegram orqali kirishda bot tasdiqlagach socket access token beradi
    * (telegramLoginSocket.js) — u shu yerda saqlanadi.
    */
-  acceptToken(accessToken, rememberMe = true) {
-    TokenManager.setAccessToken(accessToken, rememberMe);
+  acceptToken(accessToken, refreshToken = null, rememberMe = true) {
+    TokenManager.setTokens(accessToken, refreshToken, rememberMe);
   },
 
   /**
@@ -49,6 +50,19 @@ const AdminService = {
     } finally {
       TokenManager.clearTokens();
     }
+  },
+
+  /**
+   * Sessiyani yangilash (HttpOnly refresh cookie orqali).
+   * Yangi access token qaytaradi va uni cookie'ga saqlaydi.
+   */
+  async refresh() {
+    const res = await client.post(ENDPOINTS.ADMIN.REFRESH, {});
+    const token = res?.data?.accessToken || res?.accessToken;
+    if (token) {
+      TokenManager.setAccessToken(token);
+    }
+    return token;
   },
 
   /** Joriy admin — { username, role, ... } */

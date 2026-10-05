@@ -3,33 +3,23 @@
  * TROYA ADMIN — Token Manager
  * ============================================
  *
- * Interfeys o'zgarmagan — `hasAccessToken()`, `clearTokens()`,
- * `getUserFromToken()`, `isAuthenticated()`. Router, layout va navbar
- * aynan shularga tayanadi.
- *
- * ICHKARIDA — JWT:
- *  - access token (15 daqiqa) oddiy cookie'da: router "kirganmi?"
- *    degan savolga SINXRON (0 ms) javob olishi kerak, har sahifa
- *    ochilishida so'rov kutib o'tirmasdan;
- *  - refresh token HttpOnly cookie'da, uni faqat server ko'radi
- *    (`/api/admin/*` yo'li uchun). JavaScript unga umuman tegmaydi —
- *    XSS bo'lganda ham uzoq muddatli sessiya o'g'irlanmaydi.
+ * Gibrid token boshqaruvi:
+ *  - Cookie (asosiy) + LocalStorage (barqaror zaxira):
+ *    Brauzer qayta ochilganda yoki cross-domain Third-Party Cookie
+ *    cheklovlari bo'lgan hollarda ham admin sessiyasi saqlanib qoladi.
+ *  - Refresh token serverda HttpOnly cookie'da, zaxira sifatida esa
+ *    localStorage da saqlanadi.
  *
  * Access token eskirsa client.js dagi interceptor 401 ni ushlab,
  * refresh qiladi va so'rovni qaytadan yuboradi.
  */
 
 const ACCESS_TOKEN_KEY = "dodakino_access_token";
-
-// Eski panel refresh tokenni ham JS cookie'ga yozardi. U endi faqat
-// HttpOnly cookie'da — qolib ketgan nusxa chiqishda tozalanadi.
-const LEGACY_REFRESH_KEY = "dodakino_refresh_token";
+const REFRESH_TOKEN_KEY = "dodakino_refresh_token";
 
 const setCookie = (name, value, rememberMe) => {
   let cookieString = `${name}=${encodeURIComponent(value)}; path=/; SameSite=Lax;`;
 
-  // Secure faqat https da — http (lokal) da Secure cookie ba'zi
-  // brauzerlarda umuman yozilmaydi.
   if (window.location.protocol === "https:") {
     cookieString += " Secure;";
   }
@@ -62,27 +52,57 @@ const decodeJwt = (token) => {
 };
 
 export const TokenManager = {
-  // ─── Yozish ───────────────────────────────────────────────────
+  // ─── Yozish ──────────────────────────────────────────────────
   setAccessToken(token, rememberMe = true) {
-    if (token) setCookie(ACCESS_TOKEN_KEY, token, rememberMe);
+    if (token) {
+      setCookie(ACCESS_TOKEN_KEY, token, rememberMe);
+      try {
+        if (rememberMe) {
+          localStorage.setItem(ACCESS_TOKEN_KEY, token);
+        } else {
+          sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
+        }
+      } catch {}
+    }
   },
 
-  /** Eski nom — auth xizmati shu orqali ham chaqira oladi. */
-  setTokens(accessToken, _refreshToken = null, rememberMe = true) {
+  setRefreshToken(token, rememberMe = true) {
+    if (token) {
+      try {
+        if (rememberMe) {
+          localStorage.setItem(REFRESH_TOKEN_KEY, token);
+        } else {
+          sessionStorage.setItem(REFRESH_TOKEN_KEY, token);
+        }
+      } catch {}
+    }
+  },
+
+  setTokens(accessToken, refreshToken = null, rememberMe = true) {
     this.setAccessToken(accessToken, rememberMe);
+    if (refreshToken) {
+      this.setRefreshToken(refreshToken, rememberMe);
+    }
   },
 
   clearTokens() {
     deleteCookie(ACCESS_TOKEN_KEY);
-    deleteCookie(LEGACY_REFRESH_KEY);
-    // Zaxira: ilgari boshqa saqlagichda qolgan bo'lsa
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+    deleteCookie(REFRESH_TOKEN_KEY);
+    try {
+      localStorage.removeItem(ACCESS_TOKEN_KEY);
+      sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
+      sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+    } catch {}
   },
 
-  // ─── O'qish ───────────────────────────────────────────────────
+  // ─── O'qish ──────────────────────────────────────────────────
   getAccessToken() {
-    return getCookie(ACCESS_TOKEN_KEY);
+    return getCookie(ACCESS_TOKEN_KEY) || localStorage.getItem(ACCESS_TOKEN_KEY) || sessionStorage.getItem(ACCESS_TOKEN_KEY);
+  },
+
+  getRefreshToken() {
+    return localStorage.getItem(REFRESH_TOKEN_KEY) || sessionStorage.getItem(REFRESH_TOKEN_KEY);
   },
 
   /**
@@ -92,6 +112,10 @@ export const TokenManager = {
    */
   hasAccessToken() {
     return Boolean(this.getAccessToken());
+  },
+
+  hasRefreshToken() {
+    return Boolean(this.getRefreshToken());
   },
 
   /** Token ichidagi ma'lumot: { id, role }. Nom JWT da yo'q — u /admin/me dan olinadi. */
@@ -110,6 +134,6 @@ export const TokenManager = {
   },
 
   isAuthenticated() {
-    return this.hasAccessToken();
+    return this.hasAccessToken() || this.hasRefreshToken();
   },
 };

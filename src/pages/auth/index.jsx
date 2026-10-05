@@ -73,8 +73,8 @@ function Auth() {
         // Havola yangi varaqda ochiladi — panel shu yerda kutib turadi
         if (state.link) window.open(state.link, "_blank", "noopener");
       },
-      onDone: ({ accessToken }) => {
-        AdminService.acceptToken(accessToken, rememberRef.current?.checked !== false);
+      onDone: ({ accessToken, refreshToken }) => {
+        AdminService.acceptToken(accessToken, refreshToken, rememberRef.current?.checked !== false);
         goInside();
       },
       onError: (err) => {

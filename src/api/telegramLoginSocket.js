@@ -53,7 +53,7 @@ export function startTelegramLoginSession({ onUpdate, onDone, onError } = {}) {
       socket.on("connect", join);
 
       socket.on("auth_success", async (payload) => {
-        const { loginToken, accessToken, user } = payload?.data || {};
+        const { loginToken, accessToken, refreshToken, user } = payload?.data || {};
         stop();
 
         // Bir martalik kod → to'liq sessiya. Refresh cookie faqat brauzerning
@@ -64,7 +64,7 @@ export function startTelegramLoginSession({ onUpdate, onDone, onError } = {}) {
             const res = await client.post(ENDPOINTS.ADMIN.TELEGRAM_AUTH, { token: loginToken });
             const data = res?.data || {};
             if (!data.accessToken) throw new Error("Server token yubormadi");
-            onDone?.({ status: "connected", accessToken: data.accessToken, user: data.user || user });
+            onDone?.({ status: "connected", accessToken: data.accessToken, refreshToken: data.refreshToken || refreshToken, user: data.user || user });
           } catch (err) {
             onError?.(err);
           }
@@ -72,7 +72,7 @@ export function startTelegramLoginSession({ onUpdate, onDone, onError } = {}) {
         }
 
         if (accessToken) {
-          onDone?.({ status: "connected", accessToken, user });
+          onDone?.({ status: "connected", accessToken, refreshToken, user });
         } else {
           onError?.(new Error("Server token yubormadi"));
         }

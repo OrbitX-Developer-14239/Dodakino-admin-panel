@@ -19,9 +19,13 @@ export const num = (v) => (v === null || v === undefined || Number.isNaN(v) ? "â
 export const compact = (v) => {
   if (v === null || v === undefined || Number.isNaN(v)) return "â€”";
   const n = Number(v);
-  if (Math.abs(n) >= 1e9) return `${(n / 1e9).toFixed(1)}B`;
-  if (Math.abs(n) >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
-  if (Math.abs(n) >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
+  const fmt = (val, suffix) => {
+    const fixed = val.toFixed(1);
+    return (fixed.endsWith(".0") ? val.toFixed(0) : fixed) + suffix;
+  };
+  if (Math.abs(n) >= 1e9) return fmt(n / 1e9, "B");
+  if (Math.abs(n) >= 1e6) return fmt(n / 1e6, "M");
+  if (Math.abs(n) >= 1e3) return fmt(n / 1e3, "K");
   return nf.format(n);
 };
 
