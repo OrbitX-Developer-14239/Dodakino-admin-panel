@@ -1,15 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
+  TbBookmark,
+  TbBookmarkFilled,
   TbBrandInstagram,
   TbChartLine,
   TbCheck,
+  TbDots,
   TbExternalLink,
-  TbHeart,
-  TbMessageCircle,
-  TbPhotoUp,
-  TbRefresh,
   TbEye,
+  TbHeart,
+  TbHeartFilled,
+  TbMessageCircle,
+  TbMoodSmile,
+  TbPhotoUp,
   TbPlus,
+  TbRefresh,
+  TbSend,
   TbStars,
   TbTrash,
   TbUsers,
@@ -23,6 +30,7 @@ import { Badge, Button, Card, Empty, ErrorBox, Loading, Modal, PageHead, Stat } 
 import { useBusy } from "../../hooks/useBusy";
 import { useConfirm } from "../../hooks/useConfirm";
 import { ago, compact, num, time } from "../../utils/format";
+import { lockScroll } from "../../utils/scrollLock";
 
 /**
  * Instagram sahifasi — obunachilar, postlar va hikoyalar.
@@ -302,6 +310,7 @@ export default function Instagram() {
       {openMedia && (
         <MediaModal
           {...openMedia}
+          profile={p}
           onClose={() => setOpenMedia(null)}
           onDeleted={() => {
             setRemoved((ids) => [...ids, openMedia.item.id]);
@@ -416,16 +425,61 @@ function CollabInvitesCard({ invites, error, onAnswered }) {
 }
 
 /* ── Post / hikoya oynasi ─────────────────────────────────── */
-const COLLAB_STATUS = { accepted: "qabul qilgan", pending: "javob kutilmoqda", declined: "rad etgan" };
 
-function MediaModal({ kind, item, onClose, onDeleted }) {
+function MediaModal({ kind, item, profile, onClose, onDeleted }) {
   const isStory = kind === "story";
-  const isVideo = item.type === "VIDEO";
+  const isVideo = item.type === "VIDEO" || item.productType === "REELS";
   const [confirm, confirmDialog] = useConfirm();
   const [collaborators, setCollaborators] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  // Hammualliflar faqat post/Reels da bo'ladi. Endigina joylangan (lokal)
-  // postning Instagram ID si hali yo'q — u holda so'ralmaydi.
+  // Izohlar ro'yxati
+  const [comments, setComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(true);
+  const [afterCursor, setAfterCursor] = useState(null);
+  const [hasMoreComments, setHasMoreComments] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // Yangi izoh yozish holati
+  const [newCommentText, setNewCommentText] = useState("");
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [showEmojis, setShowEmojis] = useState(false);
+  const commentInputRef = useRef(null);
+
+  // Layk, saqlash va hisoblagichlar
+  const [isLiked, setIsLiked] = useState(() => {
+    try {
+      const stored = localStorage.getItem(`ig_liked_${item.id}`);
+      if (stored !== null) return stored === "true";
+    } catch (_) {}
+    return false;
+  });
+  const [likeWarning, setLikeWarning] = useState(null);
+  const [likesCount, setLikesCount] = useState(Number(item.likes) || 0);
+  const [isSaved, setIsSaved] = useState(() => {
+    try {
+      const stored = localStorage.getItem(`ig_saved_${item.id}`);
+      if (stored !== null) return stored === "true";
+    } catch (_) {}
+    return Number(item.saved) > 0;
+  });
+  const [savedCount, setSavedCount] = useState(Number(item.saved) || 0);
+  const [commentsCount, setCommentsCount] = useState(Number(item.comments) || 0);
+
+  // Escape tugmasi va sahifani surilishdan qulflash
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    window.addEventListener("keydown", onKey);
+    const unlock = lockScroll();
+    return () => {
+      unlock();
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [onClose]);
+
+  // Hammualliflar faqat post/Reels da bo'ladi
   useEffect(() => {
     if (isStory || !/^\d+$/.test(String(item.id))) return undefined;
     let alive = true;
@@ -437,6 +491,155 @@ function MediaModal({ kind, item, onClose, onDeleted }) {
       alive = false;
     };
   }, [isStory, item.id]);
+
+  // Izohlarni olish (dastlabki 30 ta, eng oxirgisi tepada)
+  useEffect(() => {
+    if (isStory || !/^\d+$/.test(String(item.id))) {
+      setCommentsLoading(false);
+      return undefined;
+    }
+    let alive = true;
+    setCommentsLoading(true);
+    client
+      .get(ENDPOINTS.INSTAGRAM.COMMENTS(item.id), { params: { limit: 30 }, silent: true })
+      .then((r) => {
+        if (!alive) return;
+        const raw = r?.data?.comments || [];
+        // Eng oxirgi izoh tepada tursin (sana bo'yicha kamayish tartibi)
+        const sorted = [...raw].sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+        setComments(sorted);
+        const cursor = r?.data?.nextCursor || r?.data?.paging?.cursors?.after;
+        setAfterCursor(cursor || null);
+        setHasMoreComments(Boolean(cursor));
+      })
+      .catch(() => {
+        if (alive) setComments([]);
+      })
+      .finally(() => {
+        if (alive) setCommentsLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [isStory, item.id]);
+
+  // Aylana ichidagi + tugmasi: keyingi 30 ta izohni yuklash
+  const loadMoreComments = async () => {
+    if (loadingMore || !afterCursor) return;
+    setLoadingMore(true);
+    try {
+      const r = await client.get(ENDPOINTS.INSTAGRAM.COMMENTS(item.id), {
+        params: { limit: 30, after: afterCursor },
+        silent: true,
+      });
+      const raw = r?.data?.comments || [];
+      setComments((prev) => {
+        const ids = new Set(prev.map((c) => c.id));
+        const merged = [...prev];
+        for (const it of raw) {
+          if (!ids.has(it.id)) {
+            merged.push(it);
+            ids.add(it.id);
+          }
+        }
+        return merged.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+      });
+      const cursor = r?.data?.nextCursor || r?.data?.paging?.cursors?.after;
+      setAfterCursor(cursor || null);
+      setHasMoreComments(Boolean(cursor));
+    } catch {
+      // xato bo'lsa hech narsa buzilmaydi
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // Xatolik xabarini 7 soniyadan so'ng avtomatik yopish
+  useEffect(() => {
+    if (!likeWarning) return undefined;
+    const t = setTimeout(() => setLikeWarning(null), 7000);
+    return () => clearTimeout(t);
+  }, [likeWarning]);
+
+  // Layk bosish (Meta API ruxsatini tekshirish bilan)
+  const toggleLike = async () => {
+    const nextLiked = !isLiked;
+    setIsLiked(nextLiked);
+    setLikesCount((prev) => Math.max(0, prev + (nextLiked ? 1 : -1)));
+
+    try {
+      const res = nextLiked
+        ? await client.post(ENDPOINTS.INSTAGRAM.LIKES(item.id), {}, { silent: true })
+        : await client.delete(ENDPOINTS.INSTAGRAM.LIKES(item.id), { silent: true });
+
+      // Agar Meta ruxsat bermasa (Authorization Error yoki success: false)
+      if (res?.data?.success === false || res?.success === false) {
+        setIsLiked(!nextLiked);
+        setLikesCount((prev) => Math.max(0, prev + (nextLiked ? -1 : 1)));
+
+        const rawErr = String(res?.data?.error || res?.error || "");
+        const isAuthErr = rawErr.toLowerCase().includes("authorization") || rawErr.toLowerCase().includes("permission");
+        setLikeWarning(
+          isAuthErr
+            ? "Meta ruxsati yetarli emas: Instagramda layk bosish uchun Meta ilovangizda 'instagram_manage_engagement' ruxsati yoqilgan bo'lishi kerak."
+            : rawErr || "Instagram API orqali laykni o'zgartirib bo'lmadi."
+        );
+      } else {
+        setLikeWarning(null);
+        try {
+          localStorage.setItem(`ig_liked_${item.id}`, String(nextLiked));
+        } catch (_) {}
+      }
+    } catch (err) {
+      setIsLiked(!nextLiked);
+      setLikesCount((prev) => Math.max(0, prev + (nextLiked ? -1 : 1)));
+      setLikeWarning(
+        "Meta ruxsati yetarli emas: Instagramda layk bosish uchun Meta ilovangizda 'instagram_manage_engagement' ruxsati kerak."
+      );
+    }
+  };
+
+  // Saqlash (bookmark) tugmasi — ichi oq bo'lib to'ladi
+  const toggleSave = () => {
+    const nextSaved = !isSaved;
+    setIsSaved(nextSaved);
+    try {
+      localStorage.setItem(`ig_saved_${item.id}`, String(nextSaved));
+    } catch (_) {}
+    setSavedCount((prev) => Math.max(0, prev + (nextSaved ? 1 : -1)));
+  };
+
+  // Izoh yuborish
+  const submitComment = async (e) => {
+    e?.preventDefault();
+    const text = newCommentText.trim();
+    if (!text || submittingComment) return;
+    setSubmittingComment(true);
+    try {
+      const r = await client.post(ENDPOINTS.INSTAGRAM.COMMENTS(item.id), { message: text });
+      const created = {
+        id: r?.data?.id || `local-${Date.now()}`,
+        text,
+        timestamp: new Date().toISOString(),
+        username: profile?.username || "doda.kino",
+        like_count: 0,
+      };
+      // Yangi izoh eng tepaga joylashadi
+      setComments((prev) => [created, ...prev]);
+      setCommentsCount((c) => (c || 0) + 1);
+      setNewCommentText("");
+      setShowEmojis(false);
+    } catch (err) {
+      console.error("Izoh yuborishda xatolik:", err);
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  const insertEmoji = (emoji) => {
+    setNewCommentText((prev) => prev + emoji);
+    commentInputRef.current?.focus();
+  };
 
   const remove = () =>
     confirm({
@@ -455,97 +658,312 @@ function MediaModal({ kind, item, onClose, onDeleted }) {
       },
     });
 
-  const rows = isStory
-    ? [
-        ["Turi", isVideo ? "Video" : "Rasm"],
-        ["Qoʻyilgan", when(item.timestamp)],
-        ["Oʻchadi", item.expiresAt ? time(item.expiresAt) : "—"],
-        ["Koʻrishlar", stat(item.views)],
-        ["Qamrov", stat(item.reach)],
-        ["Javoblar", stat(item.replies)],
-      ]
-    : [
-        ["Turi", isVideo ? (item.productType === "REELS" ? "Reels" : "Video") : "Rasm"],
-        ["Nashr etilgan", when(item.timestamp)],
-        ["Yoqtirishlar", stat(item.likes)],
-        ["Izohlar", stat(item.comments)],
-        ["Koʻrishlar", stat(item.views)],
-        ["Qamrov", stat(item.reach)],
-        ["Ulashilgan", stat(item.shares)],
-        ["Saqlagan", stat(item.saved)],
-        ...(collaborators?.length
-          ? [
-              [
-                "Hammualliflar",
-                collaborators
-                  .map((c) => `@${c.username}${COLLAB_STATUS[c.status] ? ` (${COLLAB_STATUS[c.status]})` : ""}`)
-                  .join(", "),
-              ],
-            ]
-          : []),
-      ];
+  const username = profile?.username || "doda.kino";
+  const avatarUrl = profile?.profile_picture_url;
 
-  // Statistika yo'qligi xato emas: Instagram kam ko'rilgan media uchun
-  // uni bermaydi. Shuni ochiq aytamiz, aks holda "—" tushunarsiz qoladi.
-  const noStats = item.views === null && item.reach === null;
+  return createPortal(
+    <div className={styles.postViewerOverlay} onClick={onClose} role="dialog" aria-modal="true">
+      <button
+        type="button"
+        className={styles.postViewerCloseBtn}
+        onClick={onClose}
+        aria-label="Yopish"
+      >
+        <TbX size={26} />
+      </button>
 
-  return (
-    <Modal
-      open
-      title={isStory ? "Hikoya" : "Post"}
-      onClose={onClose}
-      actions={
-        <>
-          <Button variant="danger" size="sm" icon={TbTrash} onClick={remove}>
-            Oʻchirish
-          </Button>
-          <span className="spacer" />
-          <button type="button" className="btn ghost sm" onClick={onClose}>
-            Yopish
-          </button>
-          {item.url && (
-            <a className="btn" href={item.url} target="_blank" rel="noopener noreferrer">
-              <TbExternalLink size={14} /> {isStory ? "Hikoyani ochish" : "Instagramda ochish"}
-            </a>
-          )}
-        </>
-      }
-    >
-      <div className={styles.modalBody}>
-        <div className={`${styles.preview} ${isStory ? styles.previewStory : ""}`}>
+      <div className={styles.postViewerBox} onClick={(e) => e.stopPropagation()}>
+        {/* Chap taraf: Video yoki Rasm */}
+        <div className={`${styles.mediaCol} ${isStory ? styles.mediaColStory : ""}`}>
           {isVideo && item.mediaUrl ? (
-            <video src={item.mediaUrl} controls playsInline poster={item.thumbnail || undefined} />
+            <video
+              src={item.mediaUrl}
+              controls
+              autoPlay
+              loop
+              playsInline
+              poster={item.thumbnail || undefined}
+            />
           ) : item.thumbnail ? (
             <img src={item.thumbnail} alt="" />
           ) : (
-            <TbBrandInstagram size={28} />
+            <div className={styles.mediaPlaceholder}>
+              <TbBrandInstagram size={48} />
+            </div>
           )}
         </div>
 
-        <div className={styles.details}>
-          <dl className={styles.rows}>
-            {rows.map(([label, value]) => (
-              <div key={label} className={styles.row}>
-                <dt>{label}</dt>
-                <dd>{value}</dd>
+        {/* O'ng taraf: Akkauntlar, Izoh, Commentlar, Layklar va Input */}
+        <div className={styles.detailsCol}>
+          {/* Tepada: Men va Collab akkauntlar nomi */}
+          <div className={styles.postHeader}>
+            <div className={styles.headerProfile}>
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="" className={styles.headerAvatar} />
+              ) : (
+                <div className={styles.headerAvatarPlaceholder}>
+                  {username.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className={styles.headerMeta}>
+                <div className={styles.headerAccountNames}>
+                  <strong className={styles.primaryUser}>{username}</strong>
+                  {collaborators && collaborators.length > 0 && (
+                    <span className={styles.collabNamesRow}>
+                      <span className={styles.collabWithText}>va</span>
+                      {collaborators.map((c, i) => (
+                        <span key={c.username} className={styles.collabChip}>
+                          <span className={styles.collabHandle}>@{c.username}</span>
+                          {c.status === "PENDING" && (
+                            <span className={styles.pendingTag} title="Taklif hali qabul qilinmagan">
+                              (kutilmoqda)
+                            </span>
+                          )}
+                          {i < collaborators.length - 1 && <span className={styles.collabComma}>,</span>}
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                </div>
+                <span className={styles.headerSubtitle}>Asl audio</span>
               </div>
-            ))}
-          </dl>
+            </div>
 
-          {noStats && (
-            <p className="hint">
-              Instagram statistikani kam koʻrilgan media uchun bermaydi — koʻruvchilar
-              koʻpaygach raqamlar oʻzi paydo boʻladi.
-            </p>
-          )}
+            {/* Uch nuqta amallar menyusi */}
+            <div className={styles.moreMenuWrap}>
+              <button
+                type="button"
+                className={styles.headerMoreBtn}
+                onClick={() => setMenuOpen((o) => !o)}
+                title="Qoʻshimcha amallar"
+              >
+                <TbDots size={20} />
+              </button>
+              {menuOpen && (
+                <div className={styles.moreDropdown}>
+                  {item.url && (
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.dropdownItem}
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      <TbExternalLink size={16} /> Instagramda ochish
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    className={`${styles.dropdownItem} ${styles.danger}`}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      remove();
+                    }}
+                  >
+                    <TbTrash size={16} /> {isStory ? "Hikoyani oʻchirish" : "Postni oʻchirish"}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.dropdownItem}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onClose?.();
+                    }}
+                  >
+                    <TbX size={16} /> Yopish
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
 
-          {item.caption && <p className={styles.modalCaption}>{item.caption}</p>}
+          {/* Izoh va Commentlar ro'yxati (scrollable) */}
+          <div className={styles.commentsScrollArea}>
+            {/* Akauntlar tagida izoh (post caption) */}
+            {item.caption && (
+              <div className={styles.captionBlock}>
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="" className={styles.commentAvatar} />
+                ) : (
+                  <div className={styles.commentAvatarPlaceholder}>
+                    {username.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className={styles.captionContent}>
+                  <div className={styles.captionText}>
+                    <strong>{username}</strong> <span>{item.caption}</span>
+                  </div>
+                  <div className={styles.captionTime}>{when(item.timestamp)}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Commentlar */}
+            {commentsLoading ? (
+              <div className={styles.commentsLoading}>
+                <Loading message="Izohlar yuklanmoqda…" />
+              </div>
+            ) : comments.length === 0 ? (
+              <div className={styles.noComments}>
+                <span>Hozircha izohlar yoʻq</span>
+              </div>
+            ) : (
+              comments.map((c) => (
+                <div key={c.id} className={styles.commentItem}>
+                  <div className={styles.commentAvatarPlaceholder}>
+                    {(c.username || "U").charAt(0).toUpperCase()}
+                  </div>
+                  <div className={styles.commentBody}>
+                    <div className={styles.commentText}>
+                      <strong>{c.username || "foydalanuvchi"}</strong> <span>{c.text}</span>
+                    </div>
+                    <div className={styles.commentMeta}>
+                      <span>{c.timestamp ? ago(c.timestamp) : "hozir"}</span>
+                      {Number(c.like_count) > 0 && <span>{c.like_count} layk</span>}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+
+            {/* Aylana ichida + belgisi bor tugmacha — yana 30 tasini oladi */}
+            {hasMoreComments && (
+              <div className={styles.loadMoreWrap}>
+                <button
+                  type="button"
+                  className={styles.loadMoreRoundBtn}
+                  onClick={loadMoreComments}
+                  disabled={loadingMore}
+                  title="Yana 30 ta izoh yuklash"
+                >
+                  <TbPlus size={16} className={loadingMore ? styles.spinning : ""} />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Pastda: Like, Comment, Samolyot va Saqlash tugmalari va sonlari */}
+          <div className={styles.actionsFooter}>
+            <div className={styles.actionBar}>
+              <div className={styles.actionsLeft}>
+                {/* Like: bosganda qizaradi, rostan ham API orqali bosiladi */}
+                <div className={styles.actionCol}>
+                  <button
+                    type="button"
+                    className={`${styles.actionBtn} ${isLiked ? styles.liked : ""}`}
+                    onClick={toggleLike}
+                    title="Layk"
+                  >
+                    {isLiked ? (
+                      <TbHeartFilled size={24} style={{ color: "#ed4956" }} />
+                    ) : (
+                      <TbHeart size={24} />
+                    )}
+                  </button>
+                  <span className={styles.actionCount}>{stat(likesCount)}</span>
+                </div>
+
+                {/* Comment: bosganda pastdagi inputga fokus beradi */}
+                <div className={styles.actionCol}>
+                  <button
+                    type="button"
+                    className={styles.actionBtn}
+                    onClick={() => commentInputRef.current?.focus()}
+                    title="Izoh yozish"
+                  >
+                    <TbMessageCircle size={24} />
+                  </button>
+                  <span className={styles.actionCount}>{stat(commentsCount)}</span>
+                </div>
+
+                {/* Samolyot (ulashish): ko'rinish va soni */}
+                <div className={styles.actionCol}>
+                  <button type="button" className={styles.actionBtn} title="Ulashish">
+                    <TbSend size={24} />
+                  </button>
+                  <span className={styles.actionCount}>{stat(item.shares)}</span>
+                </div>
+              </div>
+
+              {/* Saqlash tugmasi: saqlangan bo'lsa ichi oq bo'lib to'ladi */}
+              <div className={styles.actionsRight}>
+                <div className={styles.actionCol}>
+                  <button
+                    type="button"
+                    className={`${styles.actionBtn} ${isSaved ? styles.saved : ""}`}
+                    onClick={toggleSave}
+                    title="Saqlash"
+                  >
+                    {isSaved ? (
+                      <TbBookmarkFilled size={24} style={{ color: "#ffffff" }} />
+                    ) : (
+                      <TbBookmark size={24} />
+                    )}
+                  </button>
+                  <span className={styles.actionCount}>{stat(savedCount)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Sana */}
+            <div className={styles.postFooterTime}>{when(item.timestamp)}</div>
+            {likeWarning && (
+              <div className={styles.likeWarningBox}>
+                <span>{likeWarning}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Eng pastda: Comment yozish inputi */}
+          <form className={styles.commentInputRow} onSubmit={submitComment}>
+            <div className={styles.emojiPickerWrap}>
+              <button
+                type="button"
+                className={styles.emojiToggleBtn}
+                onClick={() => setShowEmojis((v) => !v)}
+                title="Smayllar"
+              >
+                <TbMoodSmile size={24} />
+              </button>
+              {showEmojis && (
+                <div className={styles.quickEmojisBar}>
+                  {["❤️", "🔥", "👏", "🎬", "🍿", "😍", "🙌", "✨"].map((em) => (
+                    <button
+                      key={em}
+                      type="button"
+                      className={styles.quickEmoji}
+                      onClick={() => insertEmoji(em)}
+                    >
+                      {em}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <input
+              ref={commentInputRef}
+              type="text"
+              className={styles.commentInputField}
+              placeholder="Fikr bildiring…"
+              value={newCommentText}
+              onChange={(e) => setNewCommentText(e.target.value)}
+            />
+
+            <button
+              type="submit"
+              className={styles.submitCommentBtn}
+              disabled={!newCommentText.trim() || submittingComment}
+            >
+              {submittingComment ? "…" : "Joylash"}
+            </button>
+          </form>
         </div>
       </div>
 
-      {/* Portal: post oynasi ustiga chiqadi, Escape faqat uni yopadi */}
       {confirmDialog}
-    </Modal>
+    </div>,
+    document.body
   );
 }
 

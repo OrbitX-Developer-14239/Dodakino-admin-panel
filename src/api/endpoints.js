@@ -98,5 +98,9 @@ export const ENDPOINTS = {
     COLLAB_INVITES: "/instagram/collab-invites",
     /** Taklifga javob (POST { accept }) — qaytarilmaydi */
     COLLAB_INVITE: (mediaId) => `/instagram/collab-invites/${mediaId}`,
+    /** Post izohlari (GET / POST) */
+    COMMENTS: (id) => `/instagram/media/${id}/comments`,
+    /** Postga layk bosish / qaytarib olish */
+    LIKES: (id) => `/instagram/media/${id}/likes`,
   },
 };
