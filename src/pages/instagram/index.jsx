@@ -20,13 +20,15 @@ import {
   TbStars,
   TbTrash,
   TbUsers,
+  TbArrowLeft,
+  TbPlayerPlayFilled,
   TbX,
 } from "react-icons/tb";
 import styles from "./index.module.scss";
 import client from "../../api/client";
 import { ENDPOINTS } from "../../api/endpoints";
 import { TrendChart } from "../../components/charts";
-import { Badge, Button, Card, Empty, ErrorBox, Loading, Modal, PageHead, Stat } from "../../components/ui";
+import { Badge, Button, Card, Empty, ErrorBox, Loading, PageHead, Stat } from "../../components/ui";
 import { useBusy } from "../../hooks/useBusy";
 import { useConfirm } from "../../hooks/useConfirm";
 import { ago, compact, num, time } from "../../utils/format";
@@ -1005,11 +1007,6 @@ function mergeCollabs(list, raw) {
  * Oyna shu vaqt yopilmaydi: yopilsa ham post baribir chiqib ketardi va
  * admin natijasini bilmay qolardi.
  */
-const SOURCE_LABEL = {
-  collab: "avvalgi hammuallif",
-  invite: "sizga collab taklif yuborgan",
-  comment: "postingizga izoh yozgan",
-};
 
 /**
  * Hammuallif yozilayotganda mos akkauntlar.
@@ -1087,18 +1084,250 @@ function useCollabSuggest(input, exclude) {
   };
 }
 
-function NewPostModal({ onClose, onPublished }) {
+
+function InstagramMediaUploadIcon({ className }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 98 78"
+      fill="none"
+      stroke="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect
+        x="3"
+        y="3"
+        width="66"
+        height="56"
+        rx="12"
+        stroke="currentColor"
+        strokeWidth="3.5"
+      />
+      <circle cx="21" cy="20" r="4.5" stroke="currentColor" strokeWidth="3" />
+      <path
+        d="M10 46 L26 29 L38 41 L47 32 L58 46"
+        stroke="currentColor"
+        strokeWidth="3.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <rect
+        x="29"
+        y="19"
+        width="66"
+        height="56"
+        rx="12"
+        stroke="currentColor"
+        strokeWidth="3.5"
+        fill="#1e2128"
+      />
+      <polygon
+        points="57,36 57,58 75,47"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function NewPostModal({ profile, onClose, onPublished }) {
+  // Bosqich: 1 = Media tanlash, 2 = Video tahrirlash (muqova tanlash), 3 = Tavsif va hammualliflar
+  const [step, setStep] = useState(1);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [dragActive, setDragActive] = useState(false);
+
+  // Video parametrlar
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [thumbTime, setThumbTime] = useState(0);
+  const [videoFrames, setVideoFrames] = useState([]);
+  const [loadingFrames, setLoadingFrames] = useState(false);
+  const [selectedThumbUrl, setSelectedThumbUrl] = useState(null);
+  const [customCoverFile, setCustomCoverFile] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+
+  // 3-bosqich: Matn va Collab
   const [caption, setCaption] = useState(DEFAULT_POST_CAPTION);
+  const [showEmojis, setShowEmojis] = useState(false);
   const [collabs, setCollabs] = useState([]);
   const [collabInput, setCollabInput] = useState("");
   const [collabError, setCollabError] = useState(null);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [hi, setHi] = useState(0);
+
+  // Yuklash jarayoni
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
-  const fileRef = useRef(null);
-  const videoRef = useRef(null);
+
+  const fileInputRef = useRef(null);
+  const coverInputRef = useRef(null);
+  const videoPlayerRef = useRef(null);
+
+  useEffect(() => lockScroll(), []);
+
+  // Tanlangan fayl URLini saqlash va tozalash
+  useEffect(() => {
+    if (!file) return undefined;
+    const url = URL.createObjectURL(file);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  const isVideo = file?.type?.startsWith("video/");
+
+  // Videodan 7 ta kadr (filmstrip) chiqarib olish
+  const extractFrames = useCallback((videoFile) => {
+    setLoadingFrames(true);
+    setVideoFrames([]);
+    const vUrl = URL.createObjectURL(videoFile);
+    const offVideo = document.createElement("video");
+    offVideo.src = vUrl;
+    offVideo.muted = true;
+    offVideo.playsInline = true;
+    offVideo.preload = "auto";
+
+    offVideo.onloadedmetadata = async () => {
+      const dur = offVideo.duration || 1;
+      setVideoDuration(dur);
+      const count = 7;
+      const stepSec = dur / (count + 1);
+      const frames = [];
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 160;
+      canvas.height = Math.round((160 * (offVideo.videoHeight || 9)) / (offVideo.videoWidth || 16)) || 160;
+      const ctx = canvas.getContext("2d");
+
+      for (let i = 1; i <= count; i++) {
+        const t = Math.min(stepSec * i, Math.max(0, dur - 0.1));
+        await new Promise((res) => {
+          const onSeek = () => {
+            offVideo.removeEventListener("seeked", onSeek);
+            try {
+              ctx.drawImage(offVideo, 0, 0, canvas.width, canvas.height);
+              frames.push({
+                time: t,
+                dataUrl: canvas.toDataURL("image/jpeg", 0.75),
+              });
+            } catch (_) {}
+            res();
+          };
+          offVideo.addEventListener("seeked", onSeek);
+          offVideo.currentTime = t;
+        });
+      }
+
+      setVideoFrames(frames);
+      setLoadingFrames(false);
+      if (frames.length > 0) {
+        setSelectedThumbUrl(frames[0].dataUrl);
+        setThumbTime(frames[0].time);
+      }
+      URL.revokeObjectURL(vUrl);
+    };
+
+    offVideo.onerror = () => {
+      setLoadingFrames(false);
+      URL.revokeObjectURL(vUrl);
+    };
+  }, []);
+
+  // Fayl tanlash
+  const handleSelectFile = (selectedFile) => {
+    setError(null);
+    if (!selectedFile) return;
+    if (selectedFile.size > FILE_MAX) {
+      setError(new Error(`Fayl juda katta (${Math.round(selectedFile.size / 1024 / 1024)} MB) — eng koʻpi 100 MB`));
+      return;
+    }
+    setFile(selectedFile);
+
+    if (selectedFile.type.startsWith("video/")) {
+      setStep(2);
+      extractFrames(selectedFile);
+    } else {
+      // 4-talab: agar rasm tanlansa birdaniga 3-bosqichga o'tsin
+      setStep(3);
+    }
+  };
+
+  // Drag & drop
+  const onDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(true);
+  };
+  const onDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+  };
+  const onDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer?.files?.[0]) {
+      handleSelectFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  // Video scrubber o'zgarganda
+  const onScrubChange = (e) => {
+    const t = parseFloat(e.target.value);
+    setThumbTime(t);
+    setCustomCoverFile(null);
+    if (videoPlayerRef.current) {
+      videoPlayerRef.current.currentTime = t;
+      if (isPlaying) {
+        videoPlayerRef.current.pause();
+        setIsPlaying(false);
+      }
+    }
+  };
+
+  // Video kadrini saqlab olish
+  const onVideoSeeked = () => {
+    if (!customCoverFile && videoPlayerRef.current) {
+      const v = videoPlayerRef.current;
+      try {
+        const c = document.createElement("canvas");
+        c.width = v.videoWidth || 320;
+        c.height = v.videoHeight || 320;
+        c.getContext("2d").drawImage(v, 0, 0);
+        setSelectedThumbUrl(c.toDataURL("image/jpeg", 0.85));
+      } catch (_) {}
+    }
+  };
+
+  // Play/pause
+  const togglePlay = () => {
+    if (!videoPlayerRef.current) return;
+    if (isPlaying) {
+      videoPlayerRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      videoPlayerRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+    }
+  };
+
+  // Maxsus muqova tanlanganda
+  const handleCustomCover = (f) => {
+    if (!f) return;
+    setCustomCoverFile(f);
+    const u = URL.createObjectURL(f);
+    setSelectedThumbUrl(u);
+  };
+
+  // Collab qidiruvi
+  const { options: suggestions, loading: suggesting } = useCollabSuggest(collabInput, collabs);
+  // Faqat 3 ta variant chiqarib berish (3-talab)
+  const displaySuggestions = suggestions.slice(0, 3);
+  const showSuggest =
+    suggestOpen && !busy && collabs.length < COLLAB_MAX && (displaySuggestions.length > 0 || suggesting);
 
   const addCollabs = (raw) => {
     const { list, error: err } = mergeCollabs(collabs, raw);
@@ -1108,40 +1337,27 @@ function NewPostModal({ onClose, onPublished }) {
     return { list, err };
   };
 
-  const [suggestOpen, setSuggestOpen] = useState(false);
-  const [hi, setHi] = useState(0); // klaviatura bilan tanlangan qator
-  const { options: suggestions, loading: suggesting } = useCollabSuggest(collabInput, collabs);
-  const showSuggest =
-    suggestOpen && !busy && collabs.length < COLLAB_MAX && (suggestions.length > 0 || suggesting);
-
   const pickSuggestion = (o) => {
-    const { list } = addCollabs(o.username);
-    // Collabchi tanlangandan keyin ham taklif qilinganlar ro'yxati ochiq tursin
-    if (list && list.length < COLLAB_MAX) {
-      setSuggestOpen(true);
-    } else {
-      setSuggestOpen(false);
-    }
+    addCollabs(o.username);
+    setSuggestOpen(false);
     setHi(0);
   };
 
   const onCollabKey = (e) => {
     if (showSuggest && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
       e.preventDefault();
-      const last = Math.max(0, suggestions.length - 1);
+      const last = Math.max(0, displaySuggestions.length - 1);
       setHi((h) => (e.key === "ArrowDown" ? Math.min(h + 1, last) : Math.max(h - 1, 0)));
       return;
     }
     if (showSuggest && e.key === "Escape") {
-      // Faqat ro'yxat yopiladi — oyna emas
       e.preventDefault();
-      e.nativeEvent.stopPropagation();
       setSuggestOpen(false);
       return;
     }
-    if (showSuggest && e.key === "Enter" && suggestions[hi]) {
+    if (showSuggest && e.key === "Enter" && displaySuggestions[hi]) {
       e.preventDefault();
-      pickSuggestion(suggestions[hi]);
+      pickSuggestion(displaySuggestions[hi]);
       return;
     }
     if (e.key === "Enter" || e.key === "," || e.key === " ") {
@@ -1153,44 +1369,14 @@ function NewPostModal({ onClose, onPublished }) {
     }
   };
 
-  const isVideo = file?.type?.startsWith("video/");
-
-  // Video uchun ro'yxatdagi muqova — oyna ko'rsatib turgan kadr
-  const videoFrame = () => {
-    const v = videoRef.current;
-    if (!v?.videoWidth) return null;
-    try {
-      const c = document.createElement("canvas");
-      c.width = v.videoWidth;
-      c.height = v.videoHeight;
-      c.getContext("2d").drawImage(v, 0, 0);
-      return c.toDataURL("image/jpeg", 0.8);
-    } catch {
-      return null;
-    }
+  // Shablondan foydalanish
+  const insertTemplate = () => {
+    setCaption("✨ Kino kodi: 000\n🎬 Kinoni profilimizdagi botdan olishingiz mumkin! 🤖🍿");
   };
 
-  // Tanlangan fayl ko'rinishi — eski havola xotiradan bo'shatiladi
-  useEffect(() => {
-    if (!file) return undefined;
-    const url = URL.createObjectURL(file);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
-
-  const pick = (f) => {
-    setError(null);
-    if (!f) return;
-    if (f.size > FILE_MAX) {
-      setError(new Error(`Fayl juda katta (${Math.round(f.size / 1024 / 1024)} MB) — eng koʻpi 100 MB`));
-      return;
-    }
-    setFile(f);
-  };
-
+  // Ulashish (Publish)
   const publish = async () => {
     if (!file) return;
-    // Maydonda yozilib, Enter bosilmay qolgan username ham hisobga olinadi
     let finalCollabs = collabs;
     if (collabInput.trim()) {
       const { list, err } = addCollabs(collabInput);
@@ -1205,15 +1391,17 @@ function NewPostModal({ onClose, onPublished }) {
       fd.append("media", file);
       if (caption.trim()) fd.append("caption", caption.trim());
       if (finalCollabs.length) fd.append("collaborators", JSON.stringify(finalCollabs));
+      if (isVideo) {
+        fd.append("thumb_offset", Math.round(thumbTime * 1000));
+      }
+
       const res = await client.post(ENDPOINTS.INSTAGRAM.POSTS, fd, {
-        timeout: 330000, // Reels qayta ishlanishi — 5 daqiqagacha
+        timeout: 330000,
         onUploadProgress: (e) => {
           if (e.total) setProgress(Math.min(100, Math.round((e.loaded / e.total) * 100)));
         },
       });
-      // Ro'yxatga darhol qo'yiladigan post — Instagram ma'lumoti kelguncha
-      // lokal fayldan. Oyna yopilganda preview havolasi bo'shatiladi,
-      // shuning uchun alohida havola ochiladi.
+
       const mediaUrl = URL.createObjectURL(file);
       onPublished?.({
         id: res?.data?.id || `local-${Date.now()}`,
@@ -1221,12 +1409,13 @@ function NewPostModal({ onClose, onPublished }) {
         type: isVideo ? "VIDEO" : "IMAGE",
         productType: isVideo ? "REELS" : "FEED",
         mediaUrl,
-        thumbnail: isVideo ? videoFrame() : mediaUrl,
+        thumbnail: isVideo ? (selectedThumbUrl || mediaUrl) : mediaUrl,
         likes: 0,
         comments: 0,
         views: 0,
         timestamp: new Date().toISOString(),
       });
+      onClose();
     } catch (e) {
       setError(e);
     } finally {
@@ -1234,223 +1423,455 @@ function NewPostModal({ onClose, onPublished }) {
     }
   };
 
-  const busyText =
-    progress < 100
-      ? `Yuklanmoqda… ${progress}%`
-      : isVideo
-        ? "Reels tayyorlanmoqda…"
-        : "Instagramga joylanmoqda…";
+  const username = profile?.username || "doda.kino";
+  const avatarUrl = profile?.profile_picture_url;
 
-  return (
-    <Modal
-      open
-      title="Yangi post"
-      onClose={() => !busy && onClose()}
-      actions={
-        <>
-          <span className="hint">
-            {file ? (isVideo ? "Video Reels boʻlib chiqadi" : "Rasm post boʻlib chiqadi") : "Fayl tanlanmagan"}
-          </span>
-          <span className="spacer" />
-          <button type="button" className="btn ghost sm" onClick={onClose} disabled={busy}>
-            Bekor qilish
-          </button>
-          <Button icon={TbBrandInstagram} busy={busy} busyText={busyText} disabled={!file} onClick={publish}>
-            Joylash
-          </Button>
-        </>
-      }
-    >
-      <ErrorBox error={error} />
+  return createPortal(
+    <div className={styles.createModalOverlay} onClick={() => !busy && onClose()} role="dialog" aria-modal="true">
+      <button
+        type="button"
+        className={styles.createModalCloseBtn}
+        onClick={() => !busy && onClose()}
+        aria-label="Yopish"
+        title="Yopish (Esc)"
+      >
+        <TbX size={20} />
+      </button>
 
-      <div className={styles.modalBody}>
-        <button
-          type="button"
-          className={`${styles.preview} ${styles.picker} ${isVideo ? styles.previewStory : ""}`}
-          onClick={() => !busy && fileRef.current?.click()}
-          disabled={busy}
-          aria-label="Rasm yoki video tanlash"
-        >
-          {preview ? (
-            isVideo ? <video ref={videoRef} src={preview} muted controls playsInline /> : <img src={preview} alt="" />
-          ) : (
-            <span className={styles.pickerEmpty}>
-              <TbPlus size={24} />
-              Rasm yoki video tanlang
-              <small>JPEG rasm yoki MP4/MOV video · 100 MB gacha</small>
-            </span>
-          )}
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/jpeg,video/mp4,video/quicktime"
-          hidden
-          onChange={(e) => pick(e.target.files?.[0] || null)}
-        />
-
-        <div className={styles.details}>
-          <label className="field">
-            <span>Izoh</span>
-            <textarea
-              value={caption}
-              onChange={(e) => setCaption(e.target.value.slice(0, CAPTION_MAX))}
-              placeholder="Post matni, heshteglar…"
-              rows={8}
+      <div
+        className={`${styles.createModalBox} ${step === 1 ? styles.createModalBoxStep1 : styles.createModalBoxSplit}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className={styles.createModalHeader}>
+          {step > 1 ? (
+            <button
+              type="button"
+              className={styles.createHeaderBackBtn}
+              onClick={() => {
+                if (busy) return;
+                if (step === 3 && isVideo) setStep(2);
+                else setStep(1);
+              }}
+              title="Ortga"
               disabled={busy}
-            />
-            <small>{num(caption.length)} / {num(CAPTION_MAX)} belgi</small>
-          </label>
+            >
+              <TbArrowLeft size={20} />
+            </button>
+          ) : <div style={{ width: 32 }} />}
 
-          <div className="field">
-            <div className={styles.collabHeader}>
-              <span>Hammualliflar (collab)</span>
-              <span className={styles.collabCount}>{collabs.length} / {COLLAB_MAX}</span>
+          <div className={styles.createModalHeaderTitle}>
+            {step === 1
+              ? "Yangi post yaratish"
+              : step === 2
+              ? "Tahrirlash"
+              : isVideo
+              ? "Yangi video Reels"
+              : "Yangi post"}
+          </div>
+
+          {step === 2 && (
+            <button
+              type="button"
+              className={styles.createHeaderActionBtn}
+              onClick={() => {
+                if (videoPlayerRef.current) {
+                  videoPlayerRef.current.pause();
+                  setIsPlaying(false);
+                }
+                setStep(3);
+              }}
+            >
+              Keyingisi
+            </button>
+          )}
+
+          {step === 3 && (
+            <button
+              type="button"
+              className={styles.createHeaderActionBtn}
+              onClick={publish}
+              disabled={busy}
+            >
+              {busy ? "Yuklanmoqda…" : "Ulashish"}
+            </button>
+          )}
+
+          {step === 1 && <div style={{ width: 32 }} />}
+        </div>
+
+        {error && <ErrorBox error={error} />}
+
+        {/* 1-BOSQICH: Media fayl tanlash (1-rasmdagi bilan bir xil) */}
+        {step === 1 && (
+          <div
+            className={`${styles.step1Body} ${dragActive ? styles.dropZoneActive : ""}`}
+            onDragEnter={onDragOver}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            onDrop={onDrop}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <div className={styles.step1IconWrap}>
+              <InstagramMediaUploadIcon className={styles.step1IconSvg} />
+            </div>
+            <div className={styles.step1Text}>
+              Foto va videolarni bu yerga sudrab tashlang
+            </div>
+            <button
+              type="button"
+              className={styles.step1SelectBtn}
+              onClick={(e) => {
+                e.stopPropagation();
+                fileInputRef.current?.click();
+              }}
+            >
+              Kompyuterdan tanlash
+            </button>
+            <div className={styles.step1Hint}>
+              JPEG, PNG rasm yoki MP4, MOV video · 100 MB gacha
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"
+              hidden
+              onChange={(e) => handleSelectFile(e.target.files?.[0])}
+            />
+          </div>
+        )}
+
+        {/* 2-BOSQICH: Video tahrirlash va muqova tanlash (2-rasmdagi bilan bir xil) */}
+        {step === 2 && isVideo && (
+          <div className={styles.splitBody}>
+            {/* Chap taraf: Video ko'rinishi */}
+            <div className={styles.splitMediaCol}>
+              <video
+                ref={videoPlayerRef}
+                src={preview}
+                playsInline
+                muted={!soundEnabled}
+                onSeeked={onVideoSeeked}
+                onEnded={() => setIsPlaying(false)}
+                onClick={togglePlay}
+              />
+              <div
+                className={styles.videoPlayOverlay}
+                onClick={togglePlay}
+                style={{ opacity: isPlaying ? 0 : 1 }}
+              >
+                <div className={styles.videoPlayIconCircle}>
+                  <TbPlayerPlayFilled size={30} style={{ marginLeft: 3 }} />
+                </div>
+              </div>
             </div>
 
-            {/* Tanlangan hammualliflar — input tepasida alohida chiplar ko'rinishida */}
-            {collabs.length > 0 && (
-              <div className={styles.collabChips}>
-                {collabs.map((name) => (
-                  <span key={name} className={styles.collabChip}>
-                    <TbBrandInstagram size={14} className={styles.chipBrand} />
-                    <strong>@{name}</strong>
-                    {!busy && (
+            {/* O'ng taraf: Muqova va tahrirlash */}
+            <div className={styles.splitSideCol}>
+              <div className={styles.editSideSection}>
+                <div className={styles.editSectionTitleRow}>
+                  <h4>Muqova rasmi</h4>
+                  <button
+                    type="button"
+                    className={styles.chooseCustomCoverLink}
+                    onClick={() => coverInputRef.current?.click()}
+                  >
+                    Kompyuterdan tanlash
+                  </button>
+                  <input
+                    ref={coverInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    hidden
+                    onChange={(e) => handleCustomCover(e.target.files?.[0])}
+                  />
+                </div>
+
+                {/* Video kadrlar lentasi (filmstrip) */}
+                <div className={styles.filmstripBox}>
+                  <div className={styles.filmstripTrack}>
+                    {loadingFrames ? (
+                      <div style={{ display: "flex", gap: "4px", width: "100%", height: "100%", alignItems: "center", justifyContent: "center", color: "#8e8e8e", fontSize: "12px" }}>
+                        Kadrlar tayyorlanmoqda…
+                      </div>
+                    ) : videoFrames.length > 0 ? (
+                      videoFrames.map((frame, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          className={`${styles.filmstripThumbBtn} ${!customCoverFile && Math.abs(thumbTime - frame.time) <= (videoDuration / 14 + 0.05) ? styles.activeThumb : ""}`}
+                          onClick={() => {
+                            setThumbTime(frame.time);
+                            setCustomCoverFile(null);
+                            setSelectedThumbUrl(frame.dataUrl);
+                            if (videoPlayerRef.current) {
+                              videoPlayerRef.current.currentTime = frame.time;
+                              videoPlayerRef.current.pause();
+                              setIsPlaying(false);
+                            }
+                          }}
+                        >
+                          <img src={frame.dataUrl} alt={`Kadr ${idx + 1}`} />
+                        </button>
+                      ))
+                    ) : null}
+                  </div>
+                </div>
+
+                {customCoverFile && (
+                  <div className={styles.customCoverBanner}>
+                    <span>Muqova: <strong>{customCoverFile.name}</strong></span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomCoverFile(null);
+                        if (videoFrames[0]) {
+                          setSelectedThumbUrl(videoFrames[0].dataUrl);
+                          setThumbTime(videoFrames[0].time);
+                        }
+                      }}
+                    >
+                      O'chirish
+                    </button>
+                  </div>
+                )}
+
+                {/* Silliq kadr tanlash scrubberi */}
+                <div className={styles.scrubSection}>
+                  <h5>Kadrni tanlash</h5>
+                  <input
+                    type="range"
+                    className={styles.scrubSlider}
+                    min={0}
+                    max={videoDuration || 1}
+                    step={0.05}
+                    value={thumbTime}
+                    onChange={onScrubChange}
+                  />
+                  <div className={styles.scrubTimeMarks}>
+                    <span>0c.</span>
+                    <span>{thumbTime.toFixed(1)}c.</span>
+                    <span>{Math.round(videoDuration)}c.</span>
+                  </div>
+                </div>
+
+                {/* Ovoz sozlamasi */}
+                <div className={styles.audioSwitchRow}>
+                  <span>Ovoz yoqilgan</span>
+                  <label className={styles.iosToggle}>
+                    <input
+                      type="checkbox"
+                      checked={soundEnabled}
+                      onChange={(e) => setSoundEnabled(e.target.checked)}
+                    />
+                    <span className={styles.iosSlider} />
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 3-BOSQICH: Tafsilotlar (Izoh va Hammualliflar - 3-rasmdagi bilan bir xil) */}
+        {step === 3 && (
+          <div className={styles.splitBody}>
+            {/* Chap taraf: Media preview */}
+            <div className={styles.splitMediaCol}>
+              {isVideo ? (
+                selectedThumbUrl ? (
+                  <img src={selectedThumbUrl} alt="Muqova" />
+                ) : (
+                  <video src={preview} playsInline muted />
+                )
+              ) : (
+                <img src={preview} alt="Post rasmi" />
+              )}
+            </div>
+
+            {/* O'ng taraf: Tavsif va Collab */}
+            <div className={styles.splitSideCol}>
+              {/* Profil qatori */}
+              <div className={styles.userHeaderRow}>
+                <div className={styles.userAvatar}>
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt={username} />
+                  ) : (
+                    username[0]?.toUpperCase() || "D"
+                  )}
+                </div>
+                <strong>{username}</strong>
+              </div>
+
+              {/* Izoh qismi */}
+              <div className={styles.captionAreaBox}>
+                <textarea
+                  className={styles.captionInput}
+                  placeholder="Izoh yozing…"
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value.slice(0, CAPTION_MAX))}
+                  disabled={busy}
+                />
+                <div className={styles.captionFooterRow}>
+                  <div className={styles.captionToolsLeft}>
+                    <button
+                      type="button"
+                      className={styles.emojiToggleBtn}
+                      onClick={() => setShowEmojis((v) => !v)}
+                      title="Smayllar"
+                    >
+                      <TbMoodSmile size={20} />
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.templateQuickBtn}
+                      onClick={insertTemplate}
+                    >
+                      Kino shabloni
+                    </button>
+                  </div>
+                  <span className={styles.captionCounter}>
+                    {caption.length} / {CAPTION_MAX}
+                  </span>
+                </div>
+
+                {showEmojis && (
+                  <div className={styles.quickEmojisBar} style={{ marginTop: 8 }}>
+                    {["❤️", "🔥", "🎬", "🍿", "😍", "👏", "✨", "🚀"].map((em) => (
                       <button
+                        key={em}
                         type="button"
-                        aria-label={`@${name} ni olib tashlash`}
-                        title="Olib tashlash"
+                        className={styles.quickEmoji}
                         onClick={() => {
-                          setCollabs(collabs.filter((n) => n !== name));
-                          setCollabError(null);
+                          setCaption((prev) => (prev ? `${prev} ${em}` : em));
+                          setShowEmojis(false);
                         }}
                       >
-                        <TbX size={12} />
-                      </button>
-                    )}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {/* Input qismi — toza, zamonaviy fokus halqasi bilan */}
-            {collabs.length < COLLAB_MAX ? (
-              <div className={styles.collabInputWrap}>
-                <input
-                  className={styles.collabInput}
-                  value={collabInput}
-                  onChange={(e) => {
-                    setCollabInput(e.target.value);
-                    setCollabError(null);
-                    setSuggestOpen(true);
-                    setHi(0);
-                  }}
-                  onKeyDown={onCollabKey}
-                  onBlur={() => setSuggestOpen(false)}
-                  onFocus={() => {
-                    setSuggestOpen(true);
-                    setHi(0);
-                  }}
-                  placeholder={
-                    collabs.length
-                      ? "Yana boshqa username yozing yoki pastdan tanlang…"
-                      : "Username yozing yoki tavsiyalardan tanlang…"
-                  }
-                  disabled={busy}
-                  autoComplete="off"
-                  spellCheck={false}
-                  role="combobox"
-                  aria-controls="collab-suggest"
-                  aria-expanded={showSuggest}
-                  aria-autocomplete="list"
-                />
-
-                {showSuggest && (
-                  <div id="collab-suggest" className={styles.suggest} role="listbox">
-                    <div className={styles.suggestHeader}>
-                      <span>Tavsiya etilgan hamkorlar</span>
-                      <button
-                        type="button"
-                        className={styles.suggestCloseBtn}
-                        title="Roʻyxatni yopish (Esc)"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => setSuggestOpen(false)}
-                      >
-                        <TbX size={14} />
-                      </button>
-                    </div>
-                    {suggestions.map((o, i) => (
-                      <button
-                        key={`${o.kind}-${o.username}`}
-                        type="button"
-                        role="option"
-                        aria-selected={i === hi}
-                        className={`${styles.suggestItem} ${i === hi ? styles.suggestActive : ""}`}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onMouseEnter={() => setHi(i)}
-                        onClick={() => pickSuggestion(o)}
-                      >
-                        <span className={styles.suggestAvatar}>
-                          {o.picture ? <img src={o.picture} alt="" /> : o.username[0].toUpperCase()}
-                        </span>
-                        <span className={styles.suggestText}>
-                          <strong>@{o.username}</strong>
-                          <small>
-                            {o.kind === "default"
-                              ? (o.label || "Tavsiya etilgan hamkor")
-                              : o.kind === "exact"
-                              ? [o.name, o.followers != null ? `${compact(o.followers)} obunachi` : null].filter(Boolean).join(" · ")
-                              : o.kind === "known"
-                                ? SOURCE_LABEL[o.source] || "aloqada boʻlgan"
-                                : "Biznes akkaunt sifatida topilmadi — shaxsiy boʻlsa ham qoʻshish mumkin"}
-                          </small>
-                        </span>
+                        {em}
                       </button>
                     ))}
-                    {suggesting && <div className={styles.suggestHint}>Qidirilmoqda…</div>}
                   </div>
                 )}
               </div>
-            ) : (
-              <div className={styles.collabMaxNotice}>
-                Maksimal {COLLAB_MAX} ta hammuallif tanlandi (Instagram limiti toʻldi)
+
+              {/* Hammualliflar (collab) qismi — 3-talab */}
+              <div className={styles.step3CollabSection}>
+                <div className={styles.step3CollabTitle}>
+                  <strong>Hammualliflar qo'shish</strong>
+                  <span>{collabs.length} / {COLLAB_MAX}</span>
+                </div>
+
+                <div className={styles.step3CollabInputWrap}>
+                  <input
+                    type="text"
+                    className={styles.step3CollabInput}
+                    placeholder={
+                      collabs.length >= COLLAB_MAX
+                        ? "Maksimal 3 ta hammuallif tanlandi"
+                        : "Hammuallif qidiring (@username)..."
+                    }
+                    value={collabInput}
+                    disabled={busy || collabs.length >= COLLAB_MAX}
+                    onChange={(e) => {
+                      setCollabInput(e.target.value);
+                      setCollabError(null);
+                      setSuggestOpen(true);
+                      setHi(0);
+                    }}
+                    onKeyDown={onCollabKey}
+                    onFocus={() => {
+                      setSuggestOpen(true);
+                      setHi(0);
+                    }}
+                    onBlur={() => setTimeout(() => setSuggestOpen(false), 200)}
+                  />
+
+                  {showSuggest && (
+                    <div className={styles.step3SuggestDropdown}>
+                      {displaySuggestions.map((o, i) => (
+                        <button
+                          key={`${o.kind}-${o.username}`}
+                          type="button"
+                          className={`${styles.step3SuggestItem} ${i === hi ? styles.activeOption : ""}`}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            pickSuggestion(o);
+                          }}
+                        >
+                          <span className={styles.suggAvatar}>
+                            {o.picture ? <img src={o.picture} alt="" /> : o.username[0].toUpperCase()}
+                          </span>
+                          <span className={styles.suggDetails}>
+                            <strong>@{o.username}</strong>
+                            <small>{o.label || o.name || "Hammuallif"}</small>
+                          </span>
+                        </button>
+                      ))}
+                      {suggesting && (
+                        <div style={{ padding: "8px 12px", fontSize: "12px", color: "#8e8e8e" }}>
+                          Qidirilmoqda…
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Tanlangan hammuallif chiplari — INPUTNING TAGIDA (3-talab) */}
+                {collabs.length > 0 && (
+                  <div className={styles.step3SelectedCollabs}>
+                    {collabs.map((name) => (
+                      <span key={name} className={styles.step3CollabChip}>
+                        <TbBrandInstagram size={14} className={styles.chipIcon} />
+                        <strong>@{name}</strong>
+                        {!busy && (
+                          <button
+                            type="button"
+                            className={styles.chipRemoveBtn}
+                            onClick={() => {
+                              setCollabs(collabs.filter((n) => n !== name));
+                              setCollabError(null);
+                            }}
+                            title="Olib tashlash"
+                          >
+                            <TbX size={12} />
+                          </button>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {collabError && (
+                  <small style={{ color: "#ff7882", display: "block", marginTop: "6px", fontSize: "11px" }}>
+                    {collabError}
+                  </small>
+                )}
+              </div>
+
+              {/* Yuklash holati / Xabarnoma */}
+              {busy && (
+                <div className={styles.uploadStatusNotice}>
+                  <span>{progress < 100 ? `Yuklanmoqda: ${progress}%` : (isVideo ? "Reels tayyorlanmoqda (1–3 daqiqa)…" : "Instagramga joylanmoqda…")}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Yuklanish progress chizig'i */}
+            {busy && (
+              <div className={styles.uploadProgressBarWrap}>
+                <div
+                  className={styles.uploadProgressBarFill}
+                  style={{ width: `${progress}%` }}
+                />
               </div>
             )}
-
-            <small className={collabError ? styles.collabError : undefined}>
-              {collabError ||
-                `Instagram rasmiy qoidasiga koʻra bitta postga eng koʻpi bilan ${COLLAB_MAX} tagacha hammuallif qoʻshish mumkin. Ularga taklif boradi.`}
-            </small>
           </div>
-
-          {file && (
-            <p className="hint">
-              {file.name} · {(file.size / 1024 / 1024).toFixed(1)} MB
-              {!busy && (
-                <>
-                  {" · "}
-                  <button type="button" className={styles.linkBtn} onClick={() => fileRef.current?.click()}>
-                    boshqasini tanlash
-                  </button>
-                </>
-              )}
-            </p>
-          )}
-
-          {busy && (
-            <div className={styles.progress} role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
-              <span className={progress >= 100 ? styles.progressWait : ""} style={{ width: `${progress}%` }} />
-            </div>
-          )}
-
-          {busy && progress >= 100 && isVideo && (
-            <p className="hint">Instagram videoni qayta ishlayapti — bu 1–3 daqiqa davom etishi mumkin.</p>
-          )}
-        </div>
+        )}
       </div>
-    </Modal>
+    </div>,
+    document.body
   );
 }
+
 
 /* ── Hikoyalar va yuklash ─────────────────────────────────── */
 function StoriesCard({ stories, onUploaded, onOpen }) {
