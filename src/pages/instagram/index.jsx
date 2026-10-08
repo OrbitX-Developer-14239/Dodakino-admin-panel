@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   TbBookmark,
@@ -28,7 +28,7 @@ import styles from "./index.module.scss";
 import client from "../../api/client";
 import { ENDPOINTS } from "../../api/endpoints";
 import { TrendChart } from "../../components/charts";
-import { Badge, Button, Card, Empty, ErrorBox, Loading, PageHead, Stat } from "../../components/ui";
+import { Badge, Button, Card, Empty, ErrorBox, Loading, PageHead, Segmented, Stat } from "../../components/ui";
 import { useBusy } from "../../hooks/useBusy";
 import { useConfirm } from "../../hooks/useConfirm";
 import { ago, compact, num, time } from "../../utils/format";
@@ -66,6 +66,19 @@ export default function Instagram() {
   const [openMedia, setOpenMedia] = useState(null); // { kind: "post"|"story", item }
   const [refreshing, runRefresh] = useBusy();
   const [composing, setComposing] = useState(false);
+  const [growthMode, setGrowthMode] = useState("total"); // "total" | "diff"
+  const lastClosedRef = useRef(0);
+
+  const openComposer = useCallback(() => {
+    // Modal yopilgandan keyin ghost click / double click orqali qayta ochilishdan himoya (600ms)
+    if (Date.now() - lastClosedRef.current < 600) return;
+    setComposing(true);
+  }, []);
+
+  const closeComposer = useCallback(() => {
+    lastClosedRef.current = Date.now();
+    setComposing(false);
+  }, []);
   // Shu sessiyada joylangan postlar — ro'yxat boshida turadi. Server ro'yxati
   // "eng yaxshi" bo'yicha tartiblangan, yangi post esa hali 0 ball bilan
   // oxiriga tushib, admin uni ko'rmay qolardi.
@@ -125,6 +138,30 @@ export default function Instagram() {
     load();
   }, [load]);
 
+  const rawGrowth = useMemo(() => {
+    return (data?.growth?.labels || []).map((label, i) => ({
+      label,
+      followers: data.growth.datasets?.[0]?.data?.[i] ?? 0,
+    }));
+  }, [data?.growth]);
+
+  const growthData = useMemo(() => {
+    return rawGrowth.map((item, i, arr) => {
+      const prev = i > 0 ? arr[i - 1].followers : item.followers;
+      const diff = item.followers - prev;
+      return {
+        label: item.label,
+        followers: item.followers,
+        diff,
+      };
+    });
+  }, [rawGrowth]);
+
+  const weeklyDiff = useMemo(() => {
+    if (rawGrowth.length < 2) return 0;
+    return rawGrowth[rawGrowth.length - 1].followers - rawGrowth[0].followers;
+  }, [rawGrowth]);
+
   if (!data && !error) return <Loading rows={5} />;
 
   const p = data?.profile;
@@ -136,10 +173,7 @@ export default function Instagram() {
   );
   const stories = (Array.isArray(data?.stories) ? data.stories : []).filter((m) => !removed.includes(m.id));
 
-  const growthData = (data?.growth?.labels || []).map((label, i) => ({
-    label,
-    followers: data.growth.datasets?.[0]?.data?.[i] ?? 0,
-  }));
+
 
   const isNotConfigured = Boolean(
     error?.status === 404 ||
@@ -160,7 +194,7 @@ export default function Instagram() {
         >
           Yangilash
         </Button>
-        <Button icon={TbPlus} onClick={() => setComposing(true)} disabled={!p}>
+        <Button icon={TbPlus} onClick={openComposer} disabled={!p}>
           Yangi post
         </Button>
       </PageHead>
@@ -218,9 +252,37 @@ export default function Instagram() {
           </div>
 
           <div className="grid c2">
-            <Card title="Obunachilar oʻsishi" icon={TbChartLine}>
+            <Card
+              title="Obunachilar oʻsishi"
+              icon={TbChartLine}
+              actions={
+                rawGrowth.length > 0 ? (
+                  <div className={styles.growthActions}>
+                    <Badge tone={weeklyDiff >= 0 ? "ok" : "warn"}>
+                      {weeklyDiff >= 0 ? `+${num(weeklyDiff)}` : num(weeklyDiff)} haftalik
+                    </Badge>
+                    <Segmented
+                      options={[
+                        { value: "total", label: "Dinamika" },
+                        { value: "diff", label: "Kunlik (+/-)" },
+                      ]}
+                      value={growthMode}
+                      onChange={setGrowthMode}
+                    />
+                  </div>
+                ) : null
+              }
+            >
               {growthData.length ? (
-                <TrendChart data={growthData} series={[{ key: "followers", name: "Obunachilar" }]} />
+                <TrendChart
+                  data={growthData}
+                  series={
+                    growthMode === "total"
+                      ? [{ key: "followers", name: "Obunachilar" }]
+                      : [{ key: "diff", name: "Kunlik oʻzgarish" }]
+                  }
+                  autoDomain
+                />
               ) : (
                 <Empty>Oʻsish maʼlumoti yoʻq</Empty>
               )}
@@ -243,7 +305,7 @@ export default function Instagram() {
             {p || posts.length ? (
               <div className={`${styles.posts} anim-stagger`}>
                 {p && (
-                  <button type="button" className={styles.addPost} onClick={() => setComposing(true)}>
+                  <button type="button" className={styles.addPost} onClick={openComposer}>
                     <span className={styles.addIcon}>
                       <TbPlus size={22} />
                     </span>
@@ -300,9 +362,10 @@ export default function Instagram() {
 
       {composing && (
         <NewPostModal
-          onClose={() => setComposing(false)}
+          profile={p}
+          onClose={closeComposer}
           onPublished={(post) => {
-            setComposing(false);
+            closeComposer();
             setFresh((list) => [post, ...list]);
             load(true);
           }}
@@ -1166,8 +1229,22 @@ function NewPostModal({ profile, onClose, onPublished }) {
   const fileInputRef = useRef(null);
   const coverInputRef = useRef(null);
   const videoPlayerRef = useRef(null);
+  const collabInputRef = useRef(null);
+  const collabWrapRef = useRef(null);
 
   useEffect(() => lockScroll(), []);
+
+  // Collab takliflari maydoni tashqarisiga bosilgandagina yopish
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (collabWrapRef.current && !collabWrapRef.current.contains(e.target)) {
+        setSuggestOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
 
   // Tanlangan fayl URLini saqlash va tozalash
   useEffect(() => {
@@ -1338,8 +1415,15 @@ function NewPostModal({ profile, onClose, onPublished }) {
   };
 
   const pickSuggestion = (o) => {
-    addCollabs(o.username);
-    setSuggestOpen(false);
+    const { list } = addCollabs(o.username);
+    // Collabchi tanlangandan keyin ham limit (3 ta) to'lmaguncha takliflar ochiq tursin
+    if (list && list.length < COLLAB_MAX) {
+      setSuggestOpen(true);
+      setCollabInput("");
+      collabInputRef.current?.focus();
+    } else {
+      setSuggestOpen(false);
+    }
     setHi(0);
   };
 
@@ -1375,7 +1459,9 @@ function NewPostModal({ profile, onClose, onPublished }) {
   };
 
   // Ulashish (Publish)
-  const publish = async () => {
+  const publish = async (e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
     if (!file) return;
     let finalCollabs = collabs;
     if (collabInput.trim()) {
@@ -1415,7 +1501,6 @@ function NewPostModal({ profile, onClose, onPublished }) {
         views: 0,
         timestamp: new Date().toISOString(),
       });
-      onClose();
     } catch (e) {
       setError(e);
     } finally {
@@ -1458,7 +1543,20 @@ function NewPostModal({ profile, onClose, onPublished }) {
             >
               <TbArrowLeft size={20} />
             </button>
-          ) : <div style={{ width: 32 }} />}
+          ) : (
+            <>
+              <button
+                type="button"
+                className={styles.createHeaderCloseMobileBtn}
+                onClick={() => !busy && onClose()}
+                title="Yopish"
+                aria-label="Yopish"
+              >
+                <TbX size={20} />
+              </button>
+              <div className={styles.desktopHeaderPlaceholder} />
+            </>
+          )}
 
           <div className={styles.createModalHeaderTitle}>
             {step === 1
@@ -1490,14 +1588,18 @@ function NewPostModal({ profile, onClose, onPublished }) {
             <button
               type="button"
               className={styles.createHeaderActionBtn}
-              onClick={publish}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                publish(e);
+              }}
               disabled={busy}
             >
               {busy ? "Yuklanmoqda…" : "Ulashish"}
             </button>
           )}
 
-          {step === 1 && <div style={{ width: 32 }} />}
+          {step === 1 && <div className={styles.desktopHeaderPlaceholder} />}
         </div>
 
         {error && <ErrorBox error={error} />}
@@ -1760,8 +1862,9 @@ function NewPostModal({ profile, onClose, onPublished }) {
                   <span>{collabs.length} / {COLLAB_MAX}</span>
                 </div>
 
-                <div className={styles.step3CollabInputWrap}>
+                <div ref={collabWrapRef} className={styles.step3CollabInputWrap}>
                   <input
+                    ref={collabInputRef}
                     type="text"
                     className={styles.step3CollabInput}
                     placeholder={
@@ -1779,10 +1882,17 @@ function NewPostModal({ profile, onClose, onPublished }) {
                     }}
                     onKeyDown={onCollabKey}
                     onFocus={() => {
-                      setSuggestOpen(true);
-                      setHi(0);
+                      if (collabs.length < COLLAB_MAX) {
+                        setSuggestOpen(true);
+                        setHi(0);
+                      }
                     }}
-                    onBlur={() => setTimeout(() => setSuggestOpen(false), 200)}
+                    onClick={() => {
+                      if (collabs.length < COLLAB_MAX) {
+                        setSuggestOpen(true);
+                        setHi(0);
+                      }
+                    }}
                   />
 
                   {showSuggest && (

@@ -2264,3 +2264,504 @@
   gap: 8px;
   margin-top: auto;
 }
+
+.growthActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.desktopHeaderPlaceholder {
+  width: 32px;
+}
+
+.createHeaderCloseMobileBtn {
+  display: none;
+  background: transparent;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   INSTAGRAM SAHIFASI MOBIL MOSLASHUV (RESPONSIVE STYLES)
+   ══════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* ── 1. Yangi post yaratish oynasi (NewPostModal) ── */
+  .createModalOverlay {
+    padding: 0;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+
+  .createModalCloseBtn {
+    display: none;
+  }
+
+  .createHeaderCloseMobileBtn {
+    display: flex;
+  }
+
+  .desktopHeaderPlaceholder {
+    display: none;
+  }
+
+  .createModalBox,
+  .createModalBoxStep1,
+  .createModalBoxSplit {
+    width: 100vw;
+    height: 100dvh;
+    height: 100vh;
+    max-width: 100vw;
+    max-height: 100dvh;
+    border-radius: 0;
+    border: none;
+  }
+
+  .createModalHeader {
+    height: 48px;
+    min-height: 48px;
+    padding: 0 10px;
+  }
+
+  .createModalHeaderTitle {
+    font-size: 14px;
+    max-width: 58%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .createHeaderActionBtn {
+    font-size: 14px;
+    padding: 6px 10px;
+  }
+
+  /* 1-bosqich: Fayl tanlash */
+  .step1Body {
+    padding: 24px 16px;
+    justify-content: center;
+  }
+
+  .step1IconSvg {
+    width: 68px;
+    height: 56px;
+  }
+
+  .step1Text {
+    font-size: 17px;
+    margin-bottom: 20px;
+    padding: 0 10px;
+  }
+
+  .step1SelectBtn {
+    width: 100%;
+    max-width: 260px;
+    padding: 11px 18px;
+    font-size: 14px;
+  }
+
+  .step1Hint {
+    font-size: 11px;
+    padding: 0 12px;
+  }
+
+  /* 2 & 3-bosqich: Split tanasi vertikal joylashuvi */
+  .splitBody {
+    flex-direction: column;
+    height: calc(100% - 48px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .splitMediaCol {
+    flex: none;
+    width: 100%;
+    min-height: 180px;
+    max-height: 36vh;
+    height: 240px;
+    background-color: #050608;
+
+    video,
+    img {
+      max-height: 100%;
+      object-fit: contain;
+    }
+  }
+
+  .videoPlayIconCircle {
+    width: 52px;
+    height: 52px;
+
+    svg {
+      width: 24px;
+      height: 24px;
+    }
+  }
+
+  .splitSideCol {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
+    height: auto;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    overflow-y: visible;
+  }
+
+  /* 2-bosqich: Video muqova va lentasi */
+  .editSideSection {
+    padding: 14px 14px 20px;
+  }
+
+  .editSectionTitleRow {
+    margin-bottom: 10px;
+
+    h4 {
+      font-size: 14px;
+    }
+
+    .chooseCustomCoverLink {
+      font-size: 12px;
+    }
+  }
+
+  .filmstripBox {
+    padding: 5px;
+    margin-bottom: 12px;
+  }
+
+  .filmstripTrack {
+    height: 64px;
+    gap: 3px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .filmstripThumbBtn {
+    min-width: 44px;
+  }
+
+  .scrubSection {
+    margin-top: 12px;
+    padding-top: 12px;
+
+    h5 {
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+  }
+
+  .scrubSlider {
+    height: 8px;
+  }
+
+  .audioSwitchRow {
+    padding: 12px 0;
+    margin-top: 12px;
+
+    span {
+      font-size: 13px;
+    }
+  }
+
+  /* 3-bosqich: Izoh va hammualliflar */
+  .userHeaderRow {
+    padding: 10px 14px;
+  }
+
+  .captionAreaBox {
+    padding: 8px 14px 10px;
+  }
+
+  .captionInput {
+    min-height: 85px;
+    max-height: 160px;
+    font-size: 14px;
+  }
+
+  .step3CollabSection {
+    padding: 12px 14px 24px;
+  }
+
+  .step3CollabTitle {
+    font-size: 13px;
+  }
+
+  .step3CollabInput {
+    font-size: 14px;
+    padding: 9px 12px;
+  }
+
+  .step3SuggestDropdown {
+    max-height: 170px;
+  }
+
+  .step3SelectedCollabs {
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .step3CollabChip {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  .uploadStatusNotice {
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+
+  /* ── 2. Post / Hikoya ko'rish oynasi (MediaModal / postViewerBox) ── */
+  .postViewerOverlay {
+    padding: 0;
+  }
+
+  .postViewerCloseBtn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1005;
+    width: 36px;
+    height: 36px;
+    background-color: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  .postViewerBox {
+    width: 100vw;
+    height: 100dvh;
+    height: 100vh;
+    max-width: 100vw;
+    max-height: 100dvh;
+    border-radius: 0;
+    border: none;
+    flex-direction: column;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mediaCol {
+    flex: none;
+    width: 100%;
+    height: 38vh;
+    min-height: 200px;
+    max-height: 42vh;
+    background-color: #000;
+  }
+
+  .mediaColStory {
+    max-width: 100%;
+    height: 50vh;
+  }
+
+  .detailsCol {
+    max-width: none;
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
+    border-left: none;
+    border-top: 1px solid #262626;
+    height: auto;
+  }
+
+  .postHeader {
+    padding: 10px 14px;
+  }
+
+  .commentsScrollArea {
+    padding: 12px 14px;
+    min-height: 120px;
+    max-height: 40vh;
+    gap: 12px;
+  }
+
+  .captionBlock {
+    gap: 10px;
+    padding-bottom: 10px;
+  }
+
+  .commentItem {
+    gap: 10px;
+  }
+
+  .actionsFooter {
+    padding: 8px 14px;
+  }
+
+  .actionsLeft {
+    gap: 14px;
+  }
+
+  .commentInputRow {
+    padding: 8px 14px;
+  }
+
+  .commentInput {
+    font-size: 14px;
+  }
+
+  .emojiPickerWrap {
+    .emojiDropdown {
+      left: 0;
+      right: auto;
+      max-width: 280px;
+    }
+  }
+}
+
+@media (max-width: 640px) {
+  /* ── 3. Profil kartochkasi ── */
+  .profile {
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .avatar {
+    width: 52px;
+    height: 52px;
+  }
+
+  .profileName {
+    font-size: 15px;
+  }
+
+  .bio {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  /* ── 4. O'sish grafikasi amallari ── */
+  .growthActions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    width: 100%;
+    margin-top: 6px;
+  }
+
+  /* ── 5. Hikoyalar bo'limi ── */
+  .upload {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+
+    button {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  .fileName {
+    text-align: center;
+    font-size: 12px;
+  }
+
+  .stories {
+    gap: 8px;
+    padding-bottom: 6px;
+  }
+
+  .story {
+    flex: 0 0 84px;
+  }
+
+  /* ── 6. Collab takliflari ── */
+  .invite {
+    grid-template-columns: 48px minmax(0, 1fr);
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .inviteThumb {
+    width: 48px;
+    height: 48px;
+  }
+
+  .inviteActions {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+    margin-top: 4px;
+
+    button {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  /* ── 7. Postlar gridi — ixcham 2 ustun ── */
+  .posts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .post {
+    padding: 6px;
+    gap: 6px;
+    border-radius: 10px;
+  }
+
+  .addPost {
+    min-height: 170px;
+    padding: 12px 6px;
+    gap: 4px;
+
+    strong {
+      font-size: 13px;
+    }
+
+    .hint {
+      font-size: 11px;
+    }
+  }
+
+  .caption {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .postStats {
+    font-size: 11px;
+    gap: 6px;
+    flex-wrap: wrap;
+
+    span {
+      font-size: 11px;
+    }
+  }
+}
+
+@media (max-width: 400px) {
+  .posts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .post {
+    padding: 5px;
+  }
+
+  .postStats {
+    font-size: 10px;
+    gap: 4px;
+
+    span {
+      font-size: 10px;
+    }
+  }
+}

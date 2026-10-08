@@ -53,3 +53,28 @@
     width: 100%;
   }
 }
+
+/* Uzun ism yoki username sababli jadval yonga surilib ketmasligi uchun */
+.nameCell {
+  max-width: 200px;
+}
+
+.nameText {
+  display: block;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usernameCell {
+  max-width: 180px;
+}
+
+.usernameText {
+  display: block;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

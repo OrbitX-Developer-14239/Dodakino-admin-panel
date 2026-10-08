@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   TbArrowLeft,
+  TbCheck,
   TbDeviceFloppy,
   TbEye,
   TbMovie,
   TbPencil,
+  TbPhotoUp,
   TbPlus,
   TbRefresh,
   TbSearch,
   TbSparkles,
   TbTrash,
+  TbUpload,
   TbX,
 } from "react-icons/tb";
 import styles from "./index.module.scss";
@@ -493,10 +496,66 @@ function FilmForm({ film, defaultCode = "", defaultChannelId = "", onCancel, onS
     posterMsgId: "",
   }));
   const [poster, setPoster] = useState(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null);
   const [saving, setSaving] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const [error, setError] = useState(null);
   const fileRef = useRef(null);
+
+  // Poster tanlanganda oldindan ko'rish (preview) URL yaratish va xotirani tozalash
+  useEffect(() => {
+    if (!poster) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(poster);
+    setPreviewUrl(url);
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [poster]);
+
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        setError(new Error("Faqat rasm fayli (.jpg, .png, .webp) yuklash mumkin!"));
+        return;
+      }
+      setPoster(file);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        setError(new Error("Faqat rasm fayli (.jpg, .png, .webp) yuklash mumkin!"));
+        return;
+      }
+      setPoster(file);
+    }
+  };
+
+  const formatFileSize = (bytes) => {
+    if (!bytes && bytes !== 0) return "";
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
 
   // Kod keyinroq kelsa (sahifa endi ochilgan bo'lsa) — bo'sh maydonni to'ldiramiz
   useEffect(() => {
@@ -636,35 +695,126 @@ function FilmForm({ film, defaultCode = "", defaultChannelId = "", onCancel, onS
 
       <fieldset className={styles.media}>
         <legend>Poster {editing && <span className="hint">— oʻzgartirmasangiz eskisi qoladi</span>}</legend>
-        <div className={styles.fileRow}>
-          <button type="button" className="btn ghost sm" onClick={() => fileRef.current?.click()}>
-            Rasm tanlash
-          </button>
-          <span className="hint">{poster ? poster.name : "yoki kanaldagi xabar ID si"}</span>
-          {poster && (
-            <button type="button" className="btn ghost sm" onClick={() => setPoster(null)} aria-label="Rasmni olib tashlash">
-              <TbX size={13} />
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          hidden
+          onChange={handleFileChange}
+        />
+
+        {!poster ? (
+          <div
+            className={`${styles.dropzone} ${dragActive ? styles.dropzoneActive : ""}`}
+            onDragEnter={handleDrag}
+            onDragOver={handleDrag}
+            onDragLeave={handleDrag}
+            onDrop={handleDrop}
+            onClick={() => fileRef.current?.click()}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                fileRef.current?.click();
+              }
+            }}
+          >
+            <div className={styles.dropzoneIconWrapper}>
+              <TbPhotoUp size={24} />
+            </div>
+            <div className={styles.dropzoneContent}>
+              <p className={styles.dropzoneTitle}>
+                <strong>Rasm tanlang</strong> yoki bu yerga sudrab tashlang
+              </p>
+              <p className={styles.dropzoneSub}>
+                PNG, JPG, WEBP · Tavsiya etiladi: 2:3 nisbat
+              </p>
+            </div>
+            <button
+              type="button"
+              className={`btn ghost sm ${styles.dropzoneBtn}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                fileRef.current?.click();
+              }}
+            >
+              <TbUpload size={13} /> Rasm tanlash
             </button>
-          )}
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={(e) => setPoster(e.target.files?.[0] || null)}
-          />
-        </div>
-        {!poster && (
-          <div className={styles.grid2}>
-            <label className="field">
-              <span>Kanal ID</span>
-              <input type="text" value={form.posterChannelId} onChange={set("posterChannelId")} />
-            </label>
-            <label className="field">
-              <span>Xabar ID (msgId)</span>
-              <input type="number" value={form.posterMsgId} onChange={set("posterMsgId")} min={1} />
-            </label>
           </div>
+        ) : (
+          <div
+            className={`${styles.posterPreviewCard} ${dragActive ? styles.dropzoneActive : ""}`}
+            onDragEnter={handleDrag}
+            onDragOver={handleDrag}
+            onDragLeave={handleDrag}
+            onDrop={handleDrop}
+          >
+            <div className={styles.previewThumbWrapper}>
+              {previewUrl && (
+                <img
+                  src={previewUrl}
+                  alt="Poster oldindan ko'rish"
+                  className={styles.previewImage}
+                />
+              )}
+            </div>
+            <div className={styles.previewInfo}>
+              <div className={styles.previewHeader}>
+                <span className={styles.previewBadge}>
+                  <TbCheck size={12} /> Poster tanlandi
+                </span>
+                <span className={styles.previewSize}>{formatFileSize(poster.size)}</span>
+              </div>
+              <span className={styles.previewFileName} title={poster.name}>
+                {poster.name}
+              </span>
+              <span className={styles.previewHint}>
+                Boshqa rasm yuklash uchun ustiga sudrab tashlang yoki almashtiring
+              </span>
+            </div>
+            <div className={styles.previewActions}>
+              <button
+                type="button"
+                className="btn ghost sm"
+                onClick={() => fileRef.current?.click()}
+                title="Boshqa rasm tanlash"
+              >
+                <TbRefresh size={13} /> Almashtirish
+              </button>
+              <button
+                type="button"
+                className="btn ghost sm"
+                onClick={() => {
+                  setPoster(null);
+                  if (fileRef.current) fileRef.current.value = "";
+                }}
+                title="Posterni olib tashlash"
+                style={{ color: "var(--color-danger, #ff5c5c)" }}
+              >
+                <TbTrash size={13} /> Olib tashlash
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!poster && (
+          <>
+            <div className={styles.posterDivider}>
+              <span>yoki kanaldagi xabar ID si</span>
+            </div>
+            <div className={styles.grid2}>
+              <label className="field">
+                <span>Kanal ID</span>
+                <input type="text" value={form.posterChannelId} onChange={set("posterChannelId")} />
+              </label>
+              <label className="field">
+                <span>Xabar ID (msgId)</span>
+                <input type="number" value={form.posterMsgId} onChange={set("posterMsgId")} min={1} />
+              </label>
+            </div>
+          </>
         )}
       </fieldset>
 

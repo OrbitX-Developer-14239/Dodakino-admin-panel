@@ -240,8 +240,12 @@ export default function UsersPage() {
                 {users.map((u) => (
                   <tr key={u._id || u.telegram_id}>
                     <td className="mono">{u.telegram_id}</td>
-                    <td>{u.first_name || "—"}</td>
-                    <td>{u.username ? `@${u.username}` : "—"}</td>
+                    <td className={styles.nameCell} title={u.first_name || undefined}>
+                      <span className={styles.nameText}>{u.first_name || "—"}</span>
+                    </td>
+                    <td className={styles.usernameCell} title={u.username ? `@${u.username}` : undefined}>
+                      <span className={styles.usernameText}>{u.username ? `@${u.username}` : "—"}</span>
+                    </td>
                     <td>
                       {isSubscribed(u) ? (
                         <Badge tone="ok">obunachi</Badge>

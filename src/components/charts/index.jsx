@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -15,7 +15,7 @@ import {
   YAxis,
 } from "recharts";
 import styles from "./index.module.scss";
-import { compact } from "../../utils/format";
+import { compact, num } from "../../utils/format";
 
 /**
  * Diagrammalar.
@@ -103,7 +103,7 @@ function ChartTooltip({ active, payload, label }) {
         <p key={entry.dataKey || entry.name} className={styles.tooltipRow}>
           <span className={styles.tooltipDot} style={{ background: entry.color }} />
           {entry.name}
-          <strong>{compact(entry.value)}</strong>
+          <strong>{num(entry.value)}</strong>
         </p>
       ))}
     </div>
@@ -142,10 +142,57 @@ function useNarrow(maxWidth = 480) {
  * Chiziq ostidagi to'ldirish gradient bilan so'nadi: hajm hissi
  * beradi, lekin ostidagi to'rni bosmaydi.
  */
-export function TrendChart({ data = [], series = [], xKey = "label", height = 260 }) {
+export function TrendChart({
+  data = [],
+  series = [],
+  xKey = "label",
+  height = 260,
+  autoDomain = false,
+  domain,
+  yTickFormatter,
+}) {
   const palette = usePalette();
   const narrow = useNarrow();
   const gradientId = `grad-${series.map((s) => s.key).join("-")}`;
+
+  const { yDomain, computedDelta } = useMemo(() => {
+    if (domain) return { yDomain: domain, computedDelta: 0 };
+    if (!autoDomain) return { yDomain: [0, "auto"], computedDelta: 0 };
+
+    const values = [];
+    data.forEach((d) => {
+      series.forEach((s) => {
+        const v = Number(d[s.key]);
+        if (!Number.isNaN(v)) values.push(v);
+      });
+    });
+    if (!values.length) return { yDomain: [0, "auto"], computedDelta: 0 };
+
+    const minVal = Math.min(...values);
+    const maxVal = Math.max(...values);
+    const delta = maxVal - minVal;
+
+    // 100 ta obunachi o'zgarishi ham grafikda sezilarli ko'rinishi uchun
+    // paddingni moslashtiramiz (delta juda kichik bo'lsa 30-50, aks holda 20%)
+    const padding = Math.max(30, Math.round(delta * 0.2 || 100));
+    const step = delta > 2000 ? 500 : delta > 300 ? 50 : 20;
+
+    let lower = Math.floor((minVal - padding) / step) * step;
+    if (minVal >= 0 && lower < 0) {
+      lower = 0;
+    }
+    const upper = Math.ceil((maxVal + padding) / step) * step;
+
+    return { yDomain: [lower, upper], computedDelta: delta };
+  }, [autoDomain, domain, data, series]);
+
+  const defaultYTickFormatter = (v) => {
+    if (yTickFormatter) return yTickFormatter(v);
+    if (autoDomain && computedDelta <= 3000) {
+      return num(v);
+    }
+    return compact(v);
+  };
 
   return (
     <div className={styles.chart} style={{ height }}>
@@ -162,7 +209,13 @@ export function TrendChart({ data = [], series = [], xKey = "label", height = 26
 
           <CartesianGrid stroke={palette.grid} vertical={false} />
           <XAxis dataKey={xKey} stroke={palette.muted} {...AXIS} />
-          <YAxis stroke={palette.muted} tickFormatter={compact} width={narrow ? 42 : 56} {...AXIS} />
+          <YAxis
+            stroke={palette.muted}
+            domain={yDomain}
+            tickFormatter={defaultYTickFormatter}
+            width={autoDomain ? (narrow ? 54 : 68) : (narrow ? 42 : 56)}
+            {...AXIS}
+          />
           <Tooltip content={<ChartTooltip />} cursor={{ stroke: palette.border }} />
 
           {series.map((s, i) => (
