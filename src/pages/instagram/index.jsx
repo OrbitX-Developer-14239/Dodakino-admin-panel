@@ -497,6 +497,24 @@ function MediaModal({ kind, item, profile, onClose, onDeleted }) {
   const [confirm, confirmDialog] = useConfirm();
   const [collaborators, setCollaborators] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [collabPopoverOpen, setCollabPopoverOpen] = useState(false);
+  const collabPopoverRef = useRef(null);
+
+  // Collab popover tashqarisiga bosilganda yopish
+  useEffect(() => {
+    if (!collabPopoverOpen) return undefined;
+    const onDocClick = (e) => {
+      if (collabPopoverRef.current && !collabPopoverRef.current.contains(e.target)) {
+        setCollabPopoverOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("touchstart", onDocClick);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("touchstart", onDocClick);
+    };
+  }, [collabPopoverOpen]);
 
   // Izohlar ro'yxati
   const [comments, setComments] = useState([]);
@@ -774,20 +792,58 @@ function MediaModal({ kind, item, profile, onClose, onDeleted }) {
                 <div className={styles.headerAccountNames}>
                   <strong className={styles.primaryUser}>{username}</strong>
                   {collaborators && collaborators.length > 0 && (
-                    <span className={styles.collabNamesRow}>
-                      <span className={styles.collabWithText}>va</span>
-                      {collaborators.map((c, i) => (
-                        <span key={c.username} className={styles.collabChip}>
-                          <span className={styles.collabHandle}>@{c.username}</span>
-                          {c.status === "PENDING" && (
-                            <span className={styles.pendingTag} title="Taklif hali qabul qilinmagan">
-                              (kutilmoqda)
-                            </span>
-                          )}
-                          {i < collaborators.length - 1 && <span className={styles.collabComma}>,</span>}
-                        </span>
-                      ))}
-                    </span>
+                    <div
+                      ref={collabPopoverRef}
+                      className={styles.collabPopoverContainer}
+                      onMouseEnter={() => setCollabPopoverOpen(true)}
+                      onMouseLeave={() => setCollabPopoverOpen(false)}
+                    >
+                      <button
+                        type="button"
+                        className={`${styles.collabSummaryBtn} ${collabPopoverOpen ? styles.collabSummaryBtnActive : ""}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCollabPopoverOpen((prev) => !prev);
+                        }}
+                        aria-expanded={collabPopoverOpen}
+                        title="Hammualliflarni koʻrish"
+                      >
+                        va yana {collaborators.length} ta
+                      </button>
+
+                      {collabPopoverOpen && (
+                        <div className={styles.collabDropdownPopover} onClick={(e) => e.stopPropagation()}>
+                          <div className={styles.collabPopoverHeader}>
+                            <strong>Hammualliflar</strong>
+                            <span className={styles.collabPopoverCount}>{collaborators.length} ta</span>
+                          </div>
+                          <div className={styles.collabPopoverList}>
+                            {collaborators.map((c) => (
+                              <div key={c.username} className={styles.collabPopoverItem}>
+                                <div className={styles.collabPopoverUser}>
+                                  <div className={styles.collabPopoverAvatar}>
+                                    <TbBrandInstagram size={13} />
+                                  </div>
+                                  <a
+                                    href={`https://instagram.com/${c.username}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={styles.collabPopoverLink}
+                                  >
+                                    @{c.username}
+                                  </a>
+                                </div>
+                                {c.status === "PENDING" ? (
+                                  <span className={styles.popoverPendingBadge}>kutilmoqda</span>
+                                ) : c.status === "ACCEPTED" ? (
+                                  <span className={styles.popoverAcceptedBadge}>qabul qilindi</span>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
                 <span className={styles.headerSubtitle}>Asl audio</span>
